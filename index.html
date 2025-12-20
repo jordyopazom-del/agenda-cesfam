@@ -691,6 +691,13 @@
     </div>
 
     <script>
+        // --- V76: Variables Globales (Para Sincronización Cloud) ---
+        window.staffDirectory = {};
+        window.ruralConfig = {};
+        window.catalogProfessionals = [];
+        window.catalogSectors = [];
+        // -----------------------------------------------------------
+
         // V60: DEBUGGER SUPREMO (Atrapar errores invisibles)
         window.onerror = function (msg, url, line) {
             // Ignorar errores de ResizeObserver (ruido común)
@@ -919,7 +926,9 @@
         let catalogActivities = JSON.parse(localStorage.getItem(CATALOG_ACT_KEY) || '[]');
         let catalogCategories = JSON.parse(localStorage.getItem(CATALOG_CAT_KEY) || '[]'); // [{name, color}]
         // let catalogSectors moved to global init (line 540)
-        let staffDirectory = JSON.parse(localStorage.getItem(STAFF_DIRECTORY_KEY) || '{}'); // V20
+
+        // V76: Use Global
+        staffDirectory = JSON.parse(localStorage.getItem(STAFF_DIRECTORY_KEY) || '{}'); // V20
 
         // Inicializar categorías si está vacío
         if (catalogCategories.length === 0) {
@@ -4076,7 +4085,9 @@
                 snapshot.forEach((doc) => {
                     const data = doc.data();
                     if (doc.id === 'staff') {
-                        staffDirectory = data.items || [];
+                        // V76 Fix: Robust Object Check
+                        const items = data.items;
+                        window.staffDirectory = (items && !Array.isArray(items)) ? items : (items || {});
                         if (typeof renderDashboard === 'function') renderDashboard();
                         console.log("👥 Staff sincronizado.");
                     }
