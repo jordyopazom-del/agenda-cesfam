@@ -4096,6 +4096,27 @@
                         // Solo renderizar si estamos en la vista adecuada para evitar errores
                         if (typeof renderRuralView === 'function') renderRuralView();
                     }
+                    // V77: Sync Catalogs
+                    if (doc.id === 'catalogs') {
+                        const sectors = data.sectors;
+                        const professionals = data.professionals;
+
+                        if (Array.isArray(sectors)) {
+                            window.catalogSectors = sectors;
+                            catalogSectors = sectors; // Update local scope variable too
+                            localStorage.setItem(CATALOG_SECTOR_KEY, JSON.stringify(sectors));
+                        }
+
+                        if (Array.isArray(professionals)) {
+                            window.catalogProfessionals = professionals;
+                            catalogProfessionals = professionals;
+                            localStorage.setItem(CATALOG_PROF_KEY, JSON.stringify(professionals));
+                        }
+
+                        console.log("📚 Catalogs sincronizados.");
+                        if (typeof renderDashboard === 'function') renderDashboard();
+                        if (typeof loadCatalogs === 'function') loadCatalogs();
+                    }
                 });
             });
         }
@@ -4148,6 +4169,8 @@
                 let eventsToUpload = [];
                 let staffToUpload = [];
                 let ruralToUpload = {};
+                let sectorsToUpload = [];
+                let professionalsToUpload = [];
 
                 if (data.version === "2.0" && data.items) {
                     const eventsItem = data.items.find(i => i.key === STORAGE_KEY);
@@ -4158,6 +4181,13 @@
 
                     const ruralItem = data.items.find(i => i.key === RURAL_CONFIG_KEY);
                     if (ruralItem) ruralToUpload = ruralItem.value;
+
+                    // V77: Extract Catalogs from Backup
+                    const sectorsItem = data.items.find(i => i.key === CATALOG_SECTOR_KEY);
+                    if (sectorsItem) sectorsToUpload = sectorsItem.value;
+
+                    const professionalsItem = data.items.find(i => i.key === CATALOG_PROF_KEY);
+                    if (professionalsItem) professionalsToUpload = professionalsItem.value;
 
                 } else if (Array.isArray(data)) {
                     eventsToUpload = data;
@@ -4190,6 +4220,11 @@
                 console.log("Subiendo configuraciones...");
                 await db.collection("settings").doc("staff").set({ items: staffToUpload });
                 await db.collection("settings").doc("rural").set({ config: ruralToUpload });
+                // V77: Upload Catalogs
+                await db.collection("settings").doc("catalogs").set({
+                    sectors: sectorsToUpload,
+                    professionals: professionalsToUpload
+                });
 
                 // 3. Subir Eventos (Secuencial)
                 // 3. Subir Eventos (Secuencial con Sanitización)
