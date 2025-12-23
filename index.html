@@ -4632,10 +4632,8 @@
                 if (typeof db !== 'undefined' && db) {
                     // Cloud Mode
                     const { id, ...data } = newEvent;
-                    // Ensure date objects
-                    data.start = new Date(data.start);
-                    // Rural events are auto-calculated in length or allDay?
-                    // Original: allDay: true.
+                    // V78 FIX: Keep date as string for allDay events to prevent timezone shift
+                    // data.start is already "YYYY-MM-DD" format which FullCalendar handles correctly
 
                     db.collection("events").add(data)
                         .then(() => {
