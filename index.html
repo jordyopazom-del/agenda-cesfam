@@ -94,6 +94,70 @@
             padding: 0 !important;
             /* Eliminar padding extra si existe */
         }
+
+        /* V78: Staff Info Tooltip (Modo Visualizador) */
+        #staffTooltip {
+            z-index: 9999;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            animation: fadeInTooltip 0.2s ease-in-out;
+        }
+
+        @keyframes fadeInTooltip {
+            from {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* V78: Staff Info Modal (Modo Admin) */
+        #modalStaffInfo {
+            z-index: 100;
+        }
+
+        #modalStaffInfo .modal-content {
+            animation: slideInModal 0.3s ease-out;
+        }
+
+        @keyframes slideInModal {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* V78: Iconos de Estado */
+        .status-icon {
+            display: inline-block;
+            width: 20px;
+            text-align: center;
+        }
+
+        /* V78: Campo de formulario con icono */
+        .form-field-with-icon {
+            position: relative;
+        }
+
+        .form-field-with-icon .field-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+        }
+
+        .form-field-with-icon input,
+        .form-field-with-icon select,
+        .form-field-with-icon textarea {}
     </style>
     <!-- V32: Firebase SDK (Compat for simple HTML usage) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -690,6 +754,96 @@
         class="hidden absolute z-[60] bg-gray-800 bg-opacity-90 backdrop-blur-sm text-white text-xs rounded-lg py-2 px-3 shadow-xl pointer-events-none whitespace-pre-line max-w-xs border border-gray-700 transition-opacity duration-200">
     </div>
 
+    <!-- V78: Tooltip Información de Funcionario (Modo Visualizador) -->
+    <div id="staffTooltip"
+        class="hidden fixed bg-white text-gray-800 text-sm rounded-lg py-3 px-4 shadow-2xl pointer-events-none max-w-sm border-2 border-cesfam-sky z-[9999]">
+        <!-- Contenido se genera dinámicamente -->
+    </div>
+
+    <!-- V78: Modal Información de Funcionario (Modo Admin) -->
+    <div id="modalStaffInfo" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg p-6 transform transition-all scale-100
+    modal-content">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h3 id="modalStaffInfoTitle" class="text-xl font-bold text-cesfam-navy">Información del Funcionario</h3>
+                <button onclick="closeStaffInfoModal()" class="text-gray-400 hover:text-gray-600 text-2xl">
+                    ×
+                </button>
+            </div>
+
+            <form id="formStaffInfo" class="space-y-4">
+                <input type="hidden" id="staffInfoName">
+
+                <!-- Encargatura -->
+                <div class="">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <span class="status-icon">📋</span> Encargaturas
+                    </label>
+                    <textarea id="staffInfoEncargatura" rows="2"
+                        placeholder="Ej: Encargado de PSCV, Coordinador de Vacunatorio" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cesfam-sky
+    resize-none"></textarea>
+                </div>
+
+                <!-- Bloqueos -->
+                <div class="">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <span class="status-icon">🚫</span> Bloqueos / Restricciones
+                    </label>
+                    <textarea id="staffInfoBloqueos" rows="2"
+                        placeholder="Ej: No disponible lunes, Licencia hasta 15/01" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cesfam-sky
+    resize-none"></textarea>
+                </div>
+
+                <!-- Box y Contacto en fila -->
+                <div class="grid grid-cols-2 gap-3">
+                    <!-- Box Asignado -->
+                    <div class="">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <span class="status-icon">📍</span> Box Asignado
+                        </label>
+                        <input type="text" id="staffInfoBox" placeholder="Ej: Box 3"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cesfam-sky">
+                    </div>
+
+                    <!-- Contacto -->
+                    <div class="">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <span class="status-icon">📞</span> Contacto
+                        </label>
+                        <input type="text" id="staffInfoContacto" placeholder="Ej: +56 9 1234 5678"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cesfam-sky">
+                    </div>
+                </div>
+
+                <!-- Estado -->
+                <div class="">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <span class="status-icon">🟢</span> Estado
+                    </label>
+                    <select id="staffInfoEstado"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cesfam-sky bg-white">
+                        <option value="Activo">🟢 Activo</option>
+                        <option value="Licencia">🟡 Licencia</option>
+                        <option value="Vacaciones">🟠 Vacaciones</option>
+                        <option value="Permiso">🔵 Permiso</option>
+                        <option value="Inactivo">⚫ Inactivo</option>
+                    </select>
+                </div>
+
+                <!-- Botones -->
+                <div class="flex justify-end gap-3 mt-6 pt-4 border-t">
+                    <button type="button" onclick="closeStaffInfoModal()"
+                        class="px-5 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition">
+                        Cancelar
+                    </button>
+                    <button type="button" onclick="saveStaffInfo()" class="px-5 py-2 bg-cesfam-sky text-white rounded-md hover:bg-cesfam-navy shadow-md transition flex items-center
+    gap-2">
+                        <span>💾</span> Guardar Información
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
     <script>
         // --- V76: Variables Globales (Para Sincronización Cloud) ---
         window.staffDirectory = {};
@@ -743,6 +897,10 @@
             catalogSectors = ["Sector 1", "Sector 2", "Sector 3", "Transversal", "SAPU", "Rural", "Otro"];
             localStorage.setItem(CATALOG_SECTOR_KEY, JSON.stringify(catalogSectors));
         }
+
+        // V79: Coordinadores de Sector
+        let sectorCoordinators = JSON.parse(localStorage.getItem('sectorCoordinators') || '{}');
+
 
 
 
@@ -2951,6 +3109,16 @@
         document.addEventListener('DOMContentLoaded', () => {
             switchTab('mapa');
             disableAdmin(); // V38: Deshabilitar admin al cargar
+
+            // V78: Inicializar campos nuevos en staffDirectory existente
+            Object.keys(staffDirectory).forEach(name => {
+                if (!staffDirectory[name].encargatura) staffDirectory[name].encargatura = "";
+                if (!staffDirectory[name].bloqueos) staffDirectory[name].bloqueos = "";
+                if (!staffDirectory[name].box) staffDirectory[name].box = "";
+                if (!staffDirectory[name].contacto) staffDirectory[name].contacto = "";
+                if (!staffDirectory[name].estado) staffDirectory[name].estado = "Activo";
+            });
+            localStorage.setItem(STAFF_DIRECTORY_KEY, JSON.stringify(staffDirectory));
         });
 
         function switchTab(tab) {
@@ -3133,6 +3301,29 @@
                         </span>
                     </div>
                     
+                    <!-- V79: Coordinador de Sector -->
+                    <div class="mb-3 pb-3 border-b border-gray-200">
+                        ${isAdmin ? `
+                            <label class="text-xs text-gray-500 font-semibold block mb-1">👨‍💼 Coordinador/a:</label>
+                            <select onchange="saveSectorCoordinator('${sectorName}', this.value)" 
+                                    class="text-sm border border-gray-300 rounded px-2 py-1 w-full focus:ring-2 focus:ring-cesfam-sky focus:border-cesfam-sky">
+                                <option value="">-- Seleccionar Coordinador --</option>
+                                ${Object.keys(staffDirectory).sort().map(name => `
+                                    <option value="${name}" ${sectorCoordinators[sectorName] === name ? 'selected' : ''}>
+                                        ${name} - ${staffDirectory[name]?.profession || 'N/A'}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        ` : `
+                            <div class="text-xs text-gray-500 italic flex items-center gap-1">
+                                👨‍💼 <span class="font-medium">Coordinador/a:</span> 
+                                <span class="${sectorCoordinators[sectorName] ? 'text-cesfam-navy font-semibold' : 'text-gray-400'}">
+                                    ${sectorCoordinators[sectorName] || 'Sin asignar'}
+                                </span>
+                            </div>
+                        `}
+                    </div>
+                    
                     <!-- V50: Eliminado Inventario de Boxes -->
 
                     <div>
@@ -3140,7 +3331,7 @@
                         <ul class="space-y-1 max-h-48 overflow-y-auto">
                             ${staff.length ? staff.map(p => `
                                 <li class="text-sm text-gray-700 flex items-center justify-between group py-1 border-b border-gray-50 last:border-0">
-                                    <span class="cursor-pointer hover:text-cesfam-sky hover:underline flex items-center gap-2" onclick="filterByProf('${p}')">
+                                    <span class="cursor-pointer hover:text-cesfam-sky hover:underline flex items-center gap-2" onclick="${isAdmin ? `openStaffInfoModal('${p}')` : `filterByProf('${p}')`}" ${!isAdmin ? `onmouseenter="showStaffTooltip('${p}', event)" onmouseleave="hideStaffTooltip()"` : ''}>
                                         <span class="font-medium">👤 ${p}</span>
                                         <span class="text-xs text-gray-400 italic"> - ${staffDirectory[p]?.profession || 'N/A'}</span>
                                     </span>
@@ -3450,10 +3641,20 @@
 
         window.deleteStaffMember = function (profName) {
             if (confirm(`¿Estás seguro de eliminar a ${profName} del sistema?`)) {
+                // 1. Borrar localmente
                 delete staffDirectory[profName];
                 localStorage.setItem(STAFF_DIRECTORY_KEY, JSON.stringify(staffDirectory));
+
+                // 2. Sincronizar con Firebase (CRÍTICO para persistencia)
+                if (typeof db !== 'undefined' && db) {
+                    db.collection("settings").doc("staff").set({
+                        items: staffDirectory
+                    }, { merge: true })
+                        .then(() => console.log(`🗑️ ${profName} eliminado de Firebase correctamente.`))
+                        .catch(err => console.error("❌ Error eliminando de Firebase:", err));
+                }
+
                 renderDashboard();
-                // Opcional: Limpiar eventos futuros de este profesional?
             }
         };
 
@@ -3510,6 +3711,15 @@
                 };
                 localStorage.setItem(STAFF_DIRECTORY_KEY, JSON.stringify(staffDirectory));
 
+                // V80 Patch: Sincronizar inmediatamente con Firebase para evitar duplicación al recargar
+                if (typeof db !== 'undefined' && db) {
+                    db.collection("settings").doc("staff").set({
+                        items: staffDirectory
+                    }, { merge: true })
+                        .then(() => console.log("✅ Perfil guardado y sincronizado en Firebase"))
+                        .catch(err => console.error("❌ Error guardando perfil en Firebase:", err));
+                }
+
                 // Sincronizar con catálogos legacy para que funcione el resto de la app
                 updateCatalogs(newName, profession, null, null, null, sector, null);
 
@@ -3527,6 +3737,7 @@
             if (!name) return;
 
             if (confirm(`⚠ ADVERTENCIA ⚠\n\nEstás a punto de eliminar a "${name}".\n\n¿Deseas activar el "Borrado en Cascada"?\nEsto eliminará TODOS sus eventos históricos y futuros del calendario.\n\nEsta acción no se puede deshacer.`)) {
+
                 // 1. Eliminar del Directorio Maestro
                 delete staffDirectory[name];
                 localStorage.setItem(STAFF_DIRECTORY_KEY, JSON.stringify(staffDirectory));
@@ -3565,11 +3776,226 @@
                 if (calendarRural) calendarRural.refetchEvents(); // Por si tenía asignaciones rurales
 
                 renderDashboard();
+
+                // V80 Patch: Sincronizar borrado con Firebase
+                if (typeof db !== 'undefined' && db) {
+                    db.collection("settings").doc("staff").set({
+                        items: staffDirectory
+                    }, { merge: true })
+                        .then(() => console.log("✅ Perfil eliminado y sincronizado con Firebase"))
+                        .catch(e => console.error("Error sync delete user", e));
+                }
+
                 closeProfileEditor();
 
                 alert(`Funcionario eliminado. Se borraron ${initialCount - events.length} eventos asociados.`);
             }
         };
+
+        // V78: Funciones para Información de Funcionario (Modal + Tooltip)
+
+        // Abrir Modal de Información (Modo Admin)
+        window.openStaffInfoModal = function (nombre) {
+            const staff = staffDirectory[nombre];
+            if (!staff) return;
+
+            // Inicializar campos si no existen
+            if (!staff.encargatura) staff.encargatura = "";
+            if (!staff.bloqueos) staff.bloqueos = "";
+            if (!staff.box) staff.box = "";
+            if (!staff.contacto) staff.contacto = "";
+            if (!staff.estado) staff.estado = "Activo";
+
+            // Poblar formulario
+            document.getElementById('staffInfoName').value = nombre;
+            document.getElementById('modalStaffInfoTitle').textContent = `Información: ${nombre}`;
+            document.getElementById('staffInfoEncargatura').value = staff.encargatura || "";
+            document.getElementById('staffInfoBloqueos').value = staff.bloqueos || "";
+            document.getElementById('staffInfoBox').value = staff.box || "";
+            document.getElementById('staffInfoContacto').value = staff.contacto || "";
+            document.getElementById('staffInfoEstado').value = staff.estado || "Activo";
+
+            // V78.1: Ocultar tooltip si está visible (fix bug de tooltip persistente)
+            hideStaffTooltip();
+
+            // Mostrar modal
+            const modal = document.getElementById('modalStaffInfo');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        // Cerrar Modal de Información
+        window.closeStaffInfoModal = function () {
+            const modal = document.getElementById('modalStaffInfo');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+
+        // Guardar Información del Funcionario
+        window.saveStaffInfo = function () {
+            const nombre = document.getElementById('staffInfoName').value;
+            if (!nombre || !staffDirectory[nombre]) {
+                alert("Error: Funcionario no encontrado");
+                return;
+            }
+
+            // Obtener valores del formulario
+            const encargatura = document.getElementById('staffInfoEncargatura').value.trim();
+            const bloqueos = document.getElementById('staffInfoBloqueos').value.trim();
+            const box = document.getElementById('staffInfoBox').value.trim();
+            const contacto = document.getElementById('staffInfoContacto').value.trim();
+            const estado = document.getElementById('staffInfoEstado').value;
+
+            // Actualizar staffDirectory
+            staffDirectory[nombre].encargatura = encargatura;
+            staffDirectory[nombre].bloqueos = bloqueos;
+            staffDirectory[nombre].box = box;
+            staffDirectory[nombre].contacto = contacto;
+            staffDirectory[nombre].estado = estado;
+
+            // Guardar en LocalStorage
+            localStorage.setItem(STAFF_DIRECTORY_KEY, JSON.stringify(staffDirectory));
+
+            // V78: Sincronizar con Firebase
+            if (db) {
+                db.collection("settings").doc("staff").set({
+                    items: staffDirectory
+                }, { merge: true })
+                    .then(() => {
+                        console.log("✅ Información de funcionario guardada en Firebase");
+                    })
+                    .catch(err => {
+                        console.error("❌ Error guardando en Firebase:", err);
+                        alert("Advertencia: Los datos se guardaron localmente, pero hubo un error al sincronizar con la nube.");
+                    });
+            }
+
+            closeStaffInfoModal();
+            renderDashboard(); // Re-renderizar para reflejar cambios de estado
+        };
+
+        // V79: Guardar Coordinador de Sector
+        window.saveSectorCoordinator = function (sectorName, coordinatorName) {
+            // Actualizar objeto de coordinadores
+            if (coordinatorName === "" || coordinatorName === "-- Seleccionar Coordinador --") {
+                delete sectorCoordinators[sectorName];
+            } else {
+                sectorCoordinators[sectorName] = coordinatorName;
+            }
+
+            // Guardar en LocalStorage
+            localStorage.setItem('sectorCoordinators', JSON.stringify(sectorCoordinators));
+
+            // Sincronizar con Firebase
+            if (typeof db !== 'undefined' && db) {
+                db.collection("settings").doc("sectorCoordinators").set(sectorCoordinators, { merge: true })
+                    .then(() => {
+                        console.log(`✅ Coordinador de "${sectorName}" guardado en Firebase`);
+                    })
+                    .catch(err => {
+                        console.error("❌ Error guardando coordinador en Firebase:", err);
+                    });
+            }
+
+            // No re-renderizar para evitar perder foco del dropdown
+        };
+
+
+        // Mostrar Tooltip con Información (Modo Visualizador)
+        window.showStaffTooltip = function (nombre, event) {
+            const staff = staffDirectory[nombre];
+            if (!staff) return;
+
+            const tooltip = document.getElementById('staffTooltip');
+
+            // Construir contenido del tooltip con iconos y colores
+            const encargatura = staff.encargatura || "Sin asignar";
+            const bloqueos = staff.bloqueos || "Ninguno";
+            const box = staff.box || "Sin asignar";
+            const contacto = staff.contacto || "No disponible";
+            const estado = staff.estado || "Activo";
+
+            // Color del estado
+            let estadoEmoji = "🟢";
+            let estadoColor = "text-green-600";
+            switch (estado) {
+                case "Licencia":
+                    estadoEmoji = "🟡";
+                    estadoColor = "text-yellow-600";
+                    break;
+                case "Vacaciones":
+                    estadoEmoji = "🟠";
+                    estadoColor = "text-orange-600";
+                    break;
+                case "Permiso":
+                    estadoEmoji = "🔵";
+                    estadoColor = "text-blue-600";
+                    break;
+                case "Inactivo":
+                    estadoEmoji = "⚫";
+                    estadoColor = "text-gray-600";
+                    break;
+            }
+
+            tooltip.innerHTML = `
+                <div class="space-y-2">
+                    <div class="font-bold text-cesfam-navy border-b pb-2 mb-2">${nombre}</div>
+                    <div class="flex items-start gap-2">
+                        <span class="text-base">📋</span>
+                        <div class="flex-1">
+                            <div class="text-xs font-semibold text-gray-500">Encargatura</div>
+                            <div class="text-sm text-gray-800">${encargatura}</div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="text-base">🚫</span>
+                        <div class="flex-1">
+                            <div class="text-xs font-semibold text-gray-500">Bloqueos</div>
+                            <div class="text-sm text-gray-800">${bloqueos}</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="flex items-start gap-2">
+                            <span class="text-base">📍</span>
+                            <div>
+                                <div class="text-xs font-semibold text-gray-500">Box</div>
+                                <div class="text-sm text-gray-800 font-medium">${box}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <span class="text-base">📞</span>
+                            <div>
+                                <div class="text-xs font-semibold text-gray-500">Contacto</div>
+                                <div class="text-sm text-gray-800">${contacto}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 pt-2 border-t">
+                        <span class="text-base">${estadoEmoji}</span>
+                        <div class="flex-1">
+                            <div class="text-xs font-semibold text-gray-500">Estado</div>
+                            <div class="text-sm font-bold ${estadoColor}">${estado}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Posicionar tooltip cerca del cursor
+            const x = event.clientX || event.pageX;
+            const y = event.clientY || event.pageY;
+
+            tooltip.style.left = (x + 15) + 'px';
+            tooltip.style.top = (y + 10) + 'px';
+
+            tooltip.classList.remove('hidden');
+        };
+
+        // Ocultar Tooltip
+        window.hideStaffTooltip = function () {
+            const tooltip = document.getElementById('staffTooltip');
+            tooltip.classList.add('hidden');
+        };
+
 
 
 
@@ -4096,6 +4522,17 @@
                         // Solo renderizar si estamos en la vista adecuada para evitar errores
                         if (typeof renderRuralView === 'function') renderRuralView();
                     }
+
+                    // V79: Sincronizar Coordinadores de Sector
+                    if (doc.id === 'sectorCoordinators') {
+                        window.sectorCoordinators = data || {};
+                        localStorage.setItem('sectorCoordinators', JSON.stringify(window.sectorCoordinators));
+                        if (typeof renderDashboard === 'function') renderDashboard();
+                        console.log("👨‍💼 Coordinadores de sector sincronizados.");
+                    }
+
+                    // V77: Sync Catalogs
+
                     // V77: Sync Catalogs
                     if (doc.id === 'catalogs') {
                         const sectors = data.sectors;
