@@ -3711,12 +3711,12 @@
                 };
                 localStorage.setItem(STAFF_DIRECTORY_KEY, JSON.stringify(staffDirectory));
 
-                // V80 Patch: Sincronizar inmediatamente con Firebase para evitar duplicación al recargar
+                // V81 Patch: FORCE UPDATE (No Merge) para evitar zombies
                 if (typeof db !== 'undefined' && db) {
-                    db.collection("settings").doc("staff").set({
+                    db.collection("settings").doc("staff").update({
                         items: staffDirectory
-                    }, { merge: true })
-                        .then(() => console.log("✅ Perfil guardado y sincronizado en Firebase"))
+                    })
+                        .then(() => console.log("✅ Perfil guardado (Update) y sincronizado en Firebase"))
                         .catch(err => console.error("❌ Error guardando perfil en Firebase:", err));
                 }
 
@@ -3777,12 +3777,12 @@
 
                 renderDashboard();
 
-                // V80 Patch: Sincronizar borrado con Firebase
+                // V81 Patch: FORCE UPDATE (No Merge) para borrar definitivamente
                 if (typeof db !== 'undefined' && db) {
-                    db.collection("settings").doc("staff").set({
+                    db.collection("settings").doc("staff").update({
                         items: staffDirectory
-                    }, { merge: true })
-                        .then(() => console.log("✅ Perfil eliminado y sincronizado con Firebase"))
+                    })
+                        .then(() => console.log("✅ Perfil eliminado (Update) de Firebase"))
                         .catch(e => console.error("Error sync delete user", e));
                 }
 
