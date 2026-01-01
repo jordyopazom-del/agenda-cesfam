@@ -32,7 +32,7 @@
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
     <!-- V39.2: Logo Data (Base64) - REMOVED (File not found) -->
-    <!-- <script src="logo_data.js"></script> -->
+    <script src="logo_data.js"></script>
     <!-- V41: html2canvas para PDF Visual -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <!-- Flatpickr -->
@@ -1836,11 +1836,14 @@
                     }
 
                     console.log("☁️ Deleting:", info.event.id);
+                    // FIX: Ensure we wait for the promise even if UI is optimistic
                     db.collection("events").doc(info.event.id).delete()
+                        .then(() => {
+                            console.log("✅ Evento borrado de nube exitosamente.");
+                        })
                         .catch(err => {
                             console.error("Error deleting event:", err);
-                            // Restore? Hard to restore removed event easily without re-adding.
-                            alert("Error al eliminar: " + err.message);
+                            alert("Error al eliminar de la nube: " + err.message);
                         });
                 },
 
@@ -3669,8 +3672,16 @@
             }
         };
 
-        window.saveProfile = function () {
+        // V28: Guardar Perfil (FIXED: Rename + Cloud Sync)
+        window.saveProfile = async function () {
             try {
+                const btnSave = document.querySelector('#formPerfil button[onclick="saveProfile()"]');
+                const originalText = btnSave ? btnSave.innerHTML : 'Guardar';
+                if (btnSave) {
+                    btnSave.disabled = true;
+                    btnSave.innerHTML = '💾 Guardando...';
+                }
+
                 const oldName = document.getElementById('perfilOldName').value;
                 const newName = normalizeName(document.getElementById('perfilNombre').value);
                 const profession = normalizeName(document.getElementById('perfilProfesion').value);
@@ -3678,22 +3689,23 @@
 
                 if (!newName || !sector) {
                     alert("Nombre y Sector son obligatorios.");
+                    if (btnSave) { btnSave.disabled = false; btnSave.innerHTML = originalText; }
                     return;
                 }
 
-                // Si cambió el nombre, borrar entrada antigua
+                // A. Manejo de Renombre (Rename Handling)
                 if (oldName && oldName !== newName) {
+                    console.log(`🔄 Renombrando funcionario: ${oldName} -> ${newName}`);
                     delete staffDirectory[oldName];
 
-                    // V60 Fix: Cascade Rename to Rural Teams
-                    // Update any rural team member with the old name to the new name
+                    // 1. Rename in Rural Teams (Local)
                     let ruralConfigDirty = false;
                     Object.values(ruralConfig).forEach(est => {
                         if (est.team) {
                             est.team.forEach(member => {
                                 if (member.name === oldName) {
                                     member.name = newName;
-                                    member.profession = profession; // Sync profession too
+                                    member.profession = profession; // Sync profession
                                     ruralConfigDirty = true;
                                 }
                             });
@@ -3701,94 +3713,201 @@
                     });
                     if (ruralConfigDirty) {
                         localStorage.setItem(RURAL_CONFIG_KEY, JSON.stringify(ruralConfig));
+                        if (typeof db !== 'undefined' && db) {
+                            await db.collection("settings").doc("rural").set({ config: ruralConfig });
+                        }
+                    }
+
+                    // 2. Rename in Events (Cloud + Local)
+                    // Local update is tricky without full refetch, but we can try.
+                    // Important: Update FIRESTORE events
+                    if (typeof db !== 'undefined' && db) {
+                        const eventsRef = db.collection("events");
+                        // We need to find all events where extendedProps.profesional == oldName
+                        // Firestore doesn't support easy "update where", so we query then batch update.
+                        try {
+                            // Query for events with this professional
+                            // Note: querying by extendedProps map field can be tricky if not indexed.
+                            // But maybe we handle it client side for now.
+                            // Let's iterate ALL local events to find IDs, then update cloud.
+                            const allEvents = getEvents();
+                            const eventsToRename = allEvents.filter(e =>
+                                (e.extendedProps && e.extendedProps.profesional === oldName)
+                            );
+
+                            if (eventsToRename.length > 0) {
+                                console.log(`☁️ Actualizando ${eventsToRename.length} eventos en la nube...`);
+                                const batchSize = 400;
+                                for (let i = 0; i < eventsToRename.length; i += batchSize) {
+                                    const batch = db.batch();
+                                    const chunk = eventsToRename.slice(i, i + batchSize);
+
+                                    chunk.forEach(ev => {
+                                        const ref = db.collection("events").doc(ev.id);
+                                        // Update the map field 'extendedProps.profesional'
+                                        // Firestore requires dot notation for nested fields update
+                                        batch.update(ref, {
+                                            "extendedProps.profesional": newName
+                                        });
+                                    });
+                                    await batch.commit();
+                                }
+                            }
+                        } catch (err) {
+                            console.error("Error renaming events in cloud:", err);
+                        }
                     }
                 }
 
-                // Guardar/Actualizar
+                // B. Guardar en Directorio (Save to Directory)
                 staffDirectory[newName] = {
                     profession: profession,
                     sector: sector
                 };
                 localStorage.setItem(STAFF_DIRECTORY_KEY, JSON.stringify(staffDirectory));
 
-                // V81 Patch: FORCE UPDATE (No Merge) para evitar zombies
+                // C. Sincronización Settings (Force Update)
                 if (typeof db !== 'undefined' && db) {
-                    db.collection("settings").doc("staff").update({
+                    await db.collection("settings").doc("staff").update({
                         items: staffDirectory
-                    })
-                        .then(() => console.log("✅ Perfil guardado (Update) y sincronizado en Firebase"))
-                        .catch(err => console.error("❌ Error guardando perfil en Firebase:", err));
+                    });
+
+                    // Also sync catalogs just in case
+                    updateCatalogs(newName, profession, null, null, null, sector, null); // This updates local array
+                    await db.collection("settings").doc("catalogs").set({
+                        sectors: catalogSectors,
+                        professionals: catalogProfessionals.includes(newName) ? catalogProfessionals : [...catalogProfessionals, newName]
+                    }, { merge: true });
+
+                    console.log("✅ Perfil guardado y sincronizado.");
+                } else {
+                    // Local mode legacy
+                    updateCatalogs(newName, profession, null, null, null, sector, null);
                 }
 
-                // Sincronizar con catálogos legacy para que funcione el resto de la app
-                updateCatalogs(newName, profession, null, null, null, sector, null);
-
                 closeProfileEditor();
-                renderDashboard();
+
+                // Reload to reflect changes
+                // If we renamed events in cloud, we should refetch
+                if (oldName && oldName !== newName && typeof db !== 'undefined' && db) {
+                    calendar.refetchEvents();
+                } else {
+                    renderDashboard();
+                }
+
             } catch (e) {
                 console.error("Error saving profile:", e);
                 alert("Error técnico al guardar: " + e.message);
+            } finally {
+                const btnSave = document.querySelector('#formPerfil button[onclick="saveProfile()"]');
+                if (btnSave) {
+                    btnSave.disabled = false;
+                    btnSave.innerHTML = 'Guardar Datos Maestros';
+                }
             }
         };
 
-        // V27: Eliminar Funcionario
-        window.deleteProfile = function () {
+        // V27: Eliminar Funcionario (FIXED: Cloud Deletion)
+        window.deleteProfile = async function () {
             const name = document.getElementById('perfilOldName').value;
             if (!name) return;
 
             if (confirm(`⚠ ADVERTENCIA ⚠\n\nEstás a punto de eliminar a "${name}".\n\n¿Deseas activar el "Borrado en Cascada"?\nEsto eliminará TODOS sus eventos históricos y futuros del calendario.\n\nEsta acción no se puede deshacer.`)) {
-
-                // 1. Eliminar del Directorio Maestro
-                delete staffDirectory[name];
-                localStorage.setItem(STAFF_DIRECTORY_KEY, JSON.stringify(staffDirectory));
-
-                // 2. Borrado en Cascada de Eventos (Urban y Rural si coincide nombre)
-                let events = getEvents();
-                const initialCount = events.length;
-                const normalizedTarget = name.toLowerCase().trim();
-
-                events = events.filter(e => {
-                    // V60: Aggressive Match (Case Insensitive + Trim)
-                    const p = (e.extendedProps && e.extendedProps.profesional) ? e.extendedProps.profesional.toLowerCase().trim() : '';
-
-                    if (p === normalizedTarget) return false; // Delete
-
-                    // Fallback: Si el título contiene el nombre (para eventos viejos/migrados)
-                    if (e.title && e.title.toLowerCase().includes(normalizedTarget)) return false;
-
-                    return true;
-                });
-
-                if (events.length < initialCount) {
-                    saveEvents(events);
+                const btnArgs = document.querySelector('#formPerfil button[onclick="deleteProfile()"]');
+                const originalText = btnArgs ? btnArgs.innerHTML : 'Eliminar';
+                if (btnArgs) {
+                    btnArgs.disabled = true;
+                    btnArgs.innerHTML = '⏳ Borrando...';
                 }
 
-                // 3. Eliminar de la lista de Profesionales
-                const idx = catalogProfessionals.indexOf(name);
-                if (idx > -1) {
-                    catalogProfessionals.splice(idx, 1);
-                    localStorage.setItem(CATALOG_PROF_KEY, JSON.stringify(catalogProfessionals));
+                try {
+                    // 1. Identificar Eventos a Borrar
+                    let events = getEvents();
+                    const initialCount = events.length;
+                    const normalizedTarget = name.toLowerCase().trim();
+
+                    // Filtrar eventos que COINCIDEN (para borrar)
+                    // Filtrar eventos que COINCIDEN (para borrar)
+                    // FIX: Ensure we are looking at Valid events, not nulls
+                    const eventsToDelete = events.filter(e => {
+                        if (!e) return false;
+                        const p = (e.extendedProps && e.extendedProps.profesional) ? e.extendedProps.profesional.toLowerCase().trim() : '';
+                        if (p === normalizedTarget) return true;
+                        if (e.title && e.title.toLowerCase().includes(normalizedTarget)) return true;
+                        return false;
+                    });
+
+                    console.log(`🗑️ Encontrados ${eventsToDelete.length} eventos para borrar en cascada.`);
+
+                    // 2. Borrar de Firestore (Batch)
+                    if (typeof db !== 'undefined' && db && eventsToDelete.length > 0) {
+                        const batchSize = 400; // Limits: 500 per batch
+                        const total = eventsToDelete.length;
+
+                        for (let i = 0; i < total; i += batchSize) {
+                            const batch = db.batch();
+                            const chunk = eventsToDelete.slice(i, i + batchSize);
+
+                            chunk.forEach(ev => {
+                                const ref = db.collection("events").doc(ev.id);
+                                batch.delete(ref);
+                            });
+
+                            await batch.commit();
+                            console.log(`🔥 Batch borrado: ${i + chunk.length}/${total}`);
+                        }
+                    }
+
+                    // 3. Eliminar del Directorio Maestro (Local)
+                    delete staffDirectory[name];
+                    localStorage.setItem(STAFF_DIRECTORY_KEY, JSON.stringify(staffDirectory));
+
+                    // 4. Eliminar de Catalogos (Local)
+                    const idx = catalogProfessionals.indexOf(name);
+                    if (idx > -1) {
+                        catalogProfessionals.splice(idx, 1);
+                        localStorage.setItem(CATALOG_PROF_KEY, JSON.stringify(catalogProfessionals));
+                    }
+
+                    // 5. Update Local Events (Source of Truth for View)
+                    const remainingEvents = events.filter(e => !eventsToDelete.includes(e));
+
+                    // CRITICAL FIX: Ensure local storage is updated REGARDLESS of DB status to prevent UI flicker
+                    // But if DB exists, we rely on refetch. However, updating local storage acts as optimistic UI 
+                    // and backup. 
+                    saveEvents(remainingEvents);
+
+                    if (db) {
+                        // Forzamos update de settings en Cloud
+                        await db.collection("settings").doc("staff").update({
+                            items: staffDirectory
+                        });
+                        // Update catalogs too
+                        await db.collection("settings").doc("catalogs").set({
+                            sectors: catalogSectors,
+                            professionals: catalogProfessionals
+                        }, { merge: true });
+                    }
+
+                    // 6. Refetch & UI
+                    loadCatalogs();
+                    if (calendar) calendar.refetchEvents();
+                    if (calendarRural) calendarRural.refetchEvents();
+
+                    renderDashboard();
+                    closeProfileEditor();
+
+                    alert(`Funcionario eliminado correctamente.\nSe borraron ${eventsToDelete.length} eventos asociados.`);
+
+                } catch (err) {
+                    console.error("❌ Error CRITICO eliminando perfil:", err);
+                    alert("Error al eliminar: " + err.message);
+                } finally {
+                    if (btnArgs) {
+                        btnArgs.disabled = false;
+                        btnArgs.innerHTML = originalText;
+                    }
                 }
-
-                // 4. Actualizar UI
-                loadCatalogs();
-                if (calendar) calendar.refetchEvents();
-                if (calendarRural) calendarRural.refetchEvents(); // Por si tenía asignaciones rurales
-
-                renderDashboard();
-
-                // V81 Patch: FORCE UPDATE (No Merge) para borrar definitivamente
-                if (typeof db !== 'undefined' && db) {
-                    db.collection("settings").doc("staff").update({
-                        items: staffDirectory
-                    })
-                        .then(() => console.log("✅ Perfil eliminado (Update) de Firebase"))
-                        .catch(e => console.error("Error sync delete user", e));
-                }
-
-                closeProfileEditor();
-
-                alert(`Funcionario eliminado. Se borraron ${initialCount - events.length} eventos asociados.`);
             }
         };
 
