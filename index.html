@@ -2628,20 +2628,20 @@
 
         // Configuración de Colores Estática (Para consistencia)
         const ESTABLISHMENT_COLORS = {
-            // Lista Confirmada por Usuario
+            // Lista Confirmada con Variantes Sin Acento (Para asegurar Match)
             'Huapi': '#42A5F5',       // Azul (Blue 400)
             'Llifén': '#66BB6A',      // Verde (Green 400)
-            'Curriñe': '#FBC02D',     // Amarillo Oscuro (Yellow 700) - Más legible
+            'Llifen': '#66BB6A',      // (Sin Acento)
+            'Curriñe': '#FBC02D',     // Amarillo Oscuro (Yellow 700)
+            'Currine': '#FBC02D',     // (Sin Ñ)
             'Maihue': '#5C6BC0',      // Indigo (Indigo 400)
             'Nontuelá': '#009688',    // Teal (Teal 500)
+            'Nontuela': '#009688',    // (Sin Acento)
             'Hueinahue': '#795548',   // Café (Brown 500)
-
-            // Nuevos agregados para evitar colisiones
-            'Chabranco': '#D81B60',   // Rosa Intenso (Pink 600) - Distinto a todo
+            'Chabranco': '#D81B60',   // Rosa Intenso (Pink 600)
             'Arquilhue': '#8E24AA',   // Púrpura (Purple 600)
-            'Loncopán': '#546E7A',    // Gris Azulado (Blue Grey 600)
-
-            // Legacy / Otros
+            'Loncopán': '#455A64',    // Blue Grey Dark (Muy oscuro para distinguir de Indigo)
+            'Loncopan': '#455A64',    // (Sin Acento)
             'Chollinco': '#AB47BC',   // Púrpura Claro
             'Llaullallau': '#EF6C00', // Naranja Oscuro
             'Caunahue': '#8D6E63',    // Café Claro
@@ -2661,14 +2661,17 @@
 
         function getEstablishmentColor(est) {
             if (!est) return '#E5E7EB';
-            // 1. Si tiene color guardado explícitamente, usarlo
-            if (est.color) return est.color;
 
-            // 2. Intentar coincidir por nombre (contiene, Case Insensitive)
+            // 1. PRIORIDAD TOTAL: Buscar en Lista Maestra (Para corregir lo que ve el usuario)
+            // Esto sobrescribirá cualquier color antiguo mal guardado.
             const lowerName = est.name.toLowerCase();
             for (const [key, color] of Object.entries(ESTABLISHMENT_COLORS)) {
+                // Usamos 'includes' para calzar "Posta Llifén" con "Llifén"
                 if (lowerName.includes(key.toLowerCase())) return color;
             }
+
+            // 2. Si no es uno de los conocidos, usar configuración propia si existe
+            if (est.color) return est.color;
 
             // 3. Generar determinísticamente basado en ID
             const idx = est.id.charCodeAt(est.id.length - 1) % DEFAULT_PALETTE.length;
