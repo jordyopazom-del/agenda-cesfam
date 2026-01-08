@@ -2628,17 +2628,27 @@
 
         // Configuración de Colores Estática (Para consistencia)
         const ESTABLISHMENT_COLORS = {
-            'Huapi': '#93C5FD', // Azul (blue-300)
-            'Llifen': '#86EFAC', // Verde (green-300)
-            'Curriñe': '#FCD34D', // Amarillo (amber-300)
-            'Maihue': '#FDA4AF', // Rojo (rose-300)
-            'Chollinco': '#D8B4FE', // Morado (purple-300)
-            'Nontuela': '#6EE7B7', // Esmeralda (emerald-300)
-            'Llaullallau': '#FDBA74', // Naranja (orange-300)
-            'Futrono': '#CBD5E1' // Gris (slate-300)
+            'Huapi': '#42A5F5',    // Azul Intenso
+            'Llifén': '#66BB6A',   // Verde Fuerte
+            'Curriñe': '#FFCA28',  // Ámbar Brillante
+            'Maihue': '#EF5350',   // Rojo Visible
+            'Chollinco': '#AB47BC',// Púrpura Profundo
+            'Nontuelá': '#26A69A', // Teal/Esmeralda Oscuro
+            'Llaullallau': '#FFA726', // Naranja Fuerte
+            'Caunahue': '#8D6E63', // Café (Distinto)
+            'Futrono': '#78909C'   // Azul Grisáceo
         };
-        // Paleta Vibrante Nivel 300
-        const DEFAULT_PALETTE = ['#93C5FD', '#86EFAC', '#FCD34D', '#FDA4AF', '#D8B4FE', '#6EE7B7', '#FDBA74'];
+        // Paleta de Respaldo Ampliada y Contrastada
+        const DEFAULT_PALETTE = [
+            '#29B6F6', // Light Blue
+            '#9CCC65', // Light Green
+            '#FF7043', // Deep Orange
+            '#7E57C2', // Deep Purple
+            '#EC407A', // Pink
+            '#26C6DA', // Cyan
+            '#FFEE58'  // Yellow
+        ];
+
 
         function getEstablishmentColor(est) {
             if (!est) return '#E5E7EB';
@@ -2884,6 +2894,21 @@
             `;
         }
 
+
+        // V80: Helper para Persistencia Robusta de Configuración Rural (Local + Cloud)
+        async function persistRuralConfig() {
+            localStorage.setItem(RURAL_CONFIG_KEY, JSON.stringify(ruralConfig));
+            if (typeof db !== 'undefined' && db) {
+                try {
+                    await db.collection("settings").doc("rural").set({ config: ruralConfig });
+                    console.log("✅ Configuración rural sincronizada con la nube.");
+                } catch (err) {
+                    console.error("❌ Error sincronizando ruralConfig:", err);
+                    alert("Advertencia: Se guardó localmente pero falló la sincronización con la nube.");
+                }
+            }
+        }
+
         window.addRuralEstablishment = function () {
             const id = 'rural-' + crypto.randomUUID();
             ruralConfig[id] = {
@@ -2895,7 +2920,7 @@
                 targets: {}, // V30.4
                 baseSector: '' // V31
             };
-            localStorage.setItem(RURAL_CONFIG_KEY, JSON.stringify(ruralConfig));
+            persistRuralConfig();
             renderRuralView();
         };
 
@@ -2903,7 +2928,7 @@
             if (confirm('¿Eliminar este establecimiento? Se borrarán también todas sus rondas asignadas.')) {
                 // 1. Borrar de Config
                 delete ruralConfig[id];
-                localStorage.setItem(RURAL_CONFIG_KEY, JSON.stringify(ruralConfig));
+                persistRuralConfig();
 
                 // 2. Borrar Rondas Asociadas (Cascade Delete)
                 let events = getEvents();
@@ -2945,13 +2970,13 @@
                 days: defaultDays
             });
 
-            localStorage.setItem(RURAL_CONFIG_KEY, JSON.stringify(ruralConfig));
+            persistRuralConfig();
             renderRuralView();
         };
 
         window.removeRuralTeamMember = function (estId, idx) {
             ruralConfig[estId].team.splice(idx, 1);
-            localStorage.setItem(RURAL_CONFIG_KEY, JSON.stringify(ruralConfig));
+            persistRuralConfig();
             renderRuralView();
         };
 
@@ -2966,7 +2991,7 @@
             }
             member.days.sort();
 
-            localStorage.setItem(RURAL_CONFIG_KEY, JSON.stringify(ruralConfig));
+            persistRuralConfig();
             // No necesitamos re-renderizar todo, pero para feedback visual de consistencia quizás sí?
             // Por ahora no, el checkbox ya cambió visualmente.
         };
@@ -2975,7 +3000,7 @@
         window.updateRuralTarget = function (estId, profession, value) {
             if (!ruralConfig[estId].targets) ruralConfig[estId].targets = {};
             ruralConfig[estId].targets[profession] = parseInt(value) || 0;
-            localStorage.setItem(RURAL_CONFIG_KEY, JSON.stringify(ruralConfig));
+            persistRuralConfig();
         };
 
         window.updateRuralEstablishment = function (id, change) {
@@ -2996,7 +3021,7 @@
                 est.days.sort();
             }
 
-            localStorage.setItem(RURAL_CONFIG_KEY, JSON.stringify(ruralConfig));
+            persistRuralConfig();
             renderRuralView(); // Re-renderizar para actualizar opacidad de días de miembros si cambian los de la posta
         };
 
