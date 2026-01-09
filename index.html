@@ -577,6 +577,60 @@
         </div>
     </main>
 
+    <!-- V85: Modal Edición Rural (Estado/Alertas) -->
+    <div id="ruralEventModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-[70]">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 transform transition-all">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 class="text-xl font-bold text-gray-800">Gestionar Ronda</h3>
+                <button onclick="closeRuralModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            </div>
+
+            <div class="mb-4">
+                <p id="ruralModalTitle" class="text-sm text-gray-500 mb-4 font-medium">Detalles del evento...</p>
+
+                <label class="block text-sm font-bold text-gray-700 mb-2">Estado de la Ronda:</label>
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                    <button type="button" onclick="setRuralStatus('normal')" id="btnStatusNormal"
+                        class="px-3 py-2 rounded border text-sm font-bold focus:outline-none transition-colors duration-200">
+                        🟢 Normal
+                    </button>
+                    <button type="button" onclick="setRuralStatus('warning')" id="btnStatusWarning"
+                        class="px-3 py-2 rounded border text-sm font-bold focus:outline-none transition-colors duration-200">
+                        ⚠️ Alerta
+                    </button>
+                    <button type="button" onclick="setRuralStatus('cancelled')" id="btnStatusCancelled"
+                        class="px-3 py-2 rounded border text-sm font-bold focus:outline-none transition-colors duration-200">
+                        ❌ Cancelado
+                    </button>
+                </div>
+
+                <label class="block text-sm font-bold text-gray-700 mb-2">Comentario / Motivo (Público):</label>
+                <textarea id="ruralModalComment" rows="3"
+                    class="w-full border-gray-300 rounded shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm p-2"
+                    placeholder="Ej: Vehículo en taller, Falta TENS, etc..."></textarea>
+            </div>
+
+            <input type="hidden" id="ruralModalEventId">
+
+            <div class="flex justify-between items-center mt-6 pt-4 border-t">
+                <button onclick="confirmDeleteRuralEvent()"
+                    class="text-red-600 hover:text-red-800 text-sm font-bold px-3 py-2 rounded hover:bg-red-50 transition-colors">
+                    🗑️ Eliminar Ronda
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="closeRuralModal()"
+                        class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 font-medium">
+                        Cancelar
+                    </button>
+                    <button onclick="saveRuralChanges()"
+                        class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-bold shadow-sm">
+                        Guardar Cambios
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal de Edición -->
     <div id="eventModal"
         class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50 flex items-center justify-center">
@@ -3037,7 +3091,119 @@
             renderRuralView(); // Re-renderizar para actualizar opacidad de días de miembros si cambian los de la posta
         };
 
-        // --- Módulo Gestión de Equipos (V17) ---
+
+        // V85: Lógica del Modal Rural (Alertas)
+        let currentRuralStatus = 'normal';
+
+        window.openRuralEventModal = function (event) {
+            const modal = document.getElementById('ruralEventModal');
+            document.getElementById('ruralModalEventId').value = event.id;
+
+            // Titulo
+            const profesional = event.extendedProps.profesional || 'Sin Asignar';
+            const fecha = event.start.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
+            document.getElementById('ruralModalTitle').innerText = `${profesional} - ${fecha}`;
+
+            // Cargar datos existentes
+            currentRuralStatus = event.extendedProps.status || 'normal';
+            setRuralStatus(currentRuralStatus);
+            document.getElementById('ruralModalComment').value = event.extendedProps.statusMessage || '';
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        window.closeRuralModal = function () {
+            const modal = document.getElementById('ruralEventModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+
+        window.setRuralStatus = function (status) {
+            currentRuralStatus = status;
+
+            // Reset Styles
+            const btnNormal = document.getElementById('btnStatusNormal');
+            const btnWarning = document.getElementById('btnStatusWarning');
+            const btnCancelled = document.getElementById('btnStatusCancelled');
+
+            [btnNormal, btnWarning, btnCancelled].forEach(b => {
+                b.classList.remove('bg-green-100', 'border-green-500', 'text-green-700');
+                b.classList.remove('bg-yellow-100', 'border-yellow-500', 'text-yellow-700');
+                b.classList.remove('bg-red-100', 'border-red-500', 'text-red-700');
+                b.classList.add('bg-white', 'border-gray-300', 'text-gray-600');
+            });
+
+            // Set Active Style
+            if (status === 'normal') {
+                btnNormal.classList.remove('bg-white', 'border-gray-300', 'text-gray-600');
+                btnNormal.classList.add('bg-green-100', 'border-green-500', 'text-green-700');
+            } else if (status === 'warning') {
+                btnWarning.classList.remove('bg-white', 'border-gray-300', 'text-gray-600');
+                btnWarning.classList.add('bg-yellow-100', 'border-yellow-500', 'text-yellow-700');
+            } else if (status === 'cancelled') {
+                btnCancelled.classList.remove('bg-white', 'border-gray-300', 'text-gray-600');
+                btnCancelled.classList.add('bg-red-100', 'border-red-500', 'text-red-700');
+            }
+        };
+
+        window.saveRuralChanges = function () {
+            const eventId = document.getElementById('ruralModalEventId').value;
+            const message = document.getElementById('ruralModalComment').value;
+
+            // 1. Get Event from Calendar
+            const apiEvent = calendarRural.getEventById(eventId);
+            if (!apiEvent) return;
+
+            // 2. Update Props
+            apiEvent.setExtendedProp('status', currentRuralStatus);
+            apiEvent.setExtendedProp('statusMessage', message);
+
+            // 3. Persist Logic (Similar to eventDrop)
+            const plainEvent = {
+                id: apiEvent.id,
+                title: apiEvent.title,
+                start: apiEvent.start,
+                end: apiEvent.end,
+                backgroundColor: apiEvent.backgroundColor,
+                borderColor: apiEvent.borderColor,
+                extendedProps: {
+                    ...apiEvent.extendedProps,
+                    status: currentRuralStatus,
+                    statusMessage: message
+                }
+            };
+
+            // Persist Local
+            let allEvents = getEvents();
+            const idx = allEvents.findIndex(e => e.id === eventId);
+            if (idx > -1) {
+                allEvents[idx] = plainEvent;
+                saveEvents(allEvents);
+            }
+
+            // Persist Cloud
+            if (db) {
+                db.collection("events").doc(eventId).update({
+                    "extendedProps.status": currentRuralStatus,
+                    "extendedProps.statusMessage": message
+                }).then(() => console.log("☁️ Estado rural actualizado.")).catch(console.error);
+            }
+
+            // Refresh UI
+            closeRuralModal();
+            calendarRural.refetchEvents();
+        };
+
+        window.confirmDeleteRuralEvent = function () {
+            const eventId = document.getElementById('ruralModalEventId').value;
+            if (confirm("¿Estás seguro de ELIMINAR definitivamente esta ronda?")) {
+                // Reuse existing logic from handleRuralEventClick but by ID
+                const apiEvent = calendarRural.getEventById(eventId);
+                if (apiEvent) apiEvent.remove(); // This triggers eventRemove callback
+                closeRuralModal();
+            }
+        };
 
         const viewAgenda = document.getElementById('viewAgenda');
         const viewMapa = document.getElementById('viewMapa');
@@ -3052,7 +3218,14 @@
         calendarRural = new FullCalendar.Calendar(calendarRuralEl, {
             initialView: 'dayGridMonth',
             dateClick: handleRuralDateClick, // V60: Manual Round Creation
-            eventClick: handleRuralEventClick, // V60: Delete Manual Round
+            eventClick: function (info) {
+                // V85: Abrir Modal en lugar de borrar directo
+                if (!isAdmin) {
+                    alert('Debes abrir el candado para editar.');
+                    return;
+                }
+                openRuralEventModal(info.event);
+            },
             locale: 'es',
             weekends: false, // V33: Ocultar fines de semana
             headerToolbar: {
@@ -3116,14 +3289,35 @@
                     color = getEstablishmentColor(ruralConfig[estId]);
                 }
 
-                // V33: Bloque Sólido Estilo Etiqueta
-                // Texto oscuro para colores pastel
+                // V85: Visuals for Alerts
+                const status = arg.event.extendedProps.status || 'normal';
+                let icon = '';
+                let opacity = '1';
+                let decoration = 'none';
+
+                if (status === 'warning') {
+                    icon = '⚠️ ';
+                } else if (status === 'cancelled') {
+                    icon = '❌ ';
+                    opacity = '0.6';
+                    decoration = 'line-through';
+                }
+
+                // Tooltip Content (Browser Native Title for Simplicity & Mobile Touch Hold)
+                const tooltipText = arg.event.extendedProps.statusMessage || (status === 'cancelled' ? 'Ronda Cancelada' : '');
+
                 return {
                     html: `
-                        <div class="w-full h-full px-1 py-0.5 rounded shadow-sm overflow-hidden text-xs flex flex-col justify-center" style="background-color: ${color}; color: #1F2937; border-left: 3px solid rgba(0,0,0,0.1);">
-                            <div class="font-bold truncate leading-tight">${arg.event.extendedProps.profesional || 'Sin Asignar'}</div>
-                            <!-- Opcional: Mostrar nombre de posta si no está filtrado, o actividad -->
-                            <!-- <div class="truncate opacity-75 text-[9px]">${arg.event.title}</div> -->
+                        <div class="w-full h-full px-1 py-0.5 rounded shadow-sm overflow-visible text-xs flex flex-col justify-center relative group" 
+                             title="${tooltipText}"
+                             style="background-color: ${color}; color: #1F2937; border-left: 3px solid rgba(0,0,0,0.1); opacity: ${opacity};">
+                            
+                            <div class="font-bold truncate leading-tight" style="text-decoration: ${decoration}">
+                                ${icon}${arg.event.extendedProps.profesional || 'Sin Asignar'}
+                            </div>
+                            
+                            <!-- Custom Hover (Solo PC) -->
+                            ${tooltipText ? `<div class="absolute bottom-full left-0 bg-gray-800 text-white text-[10px] p-2 rounded shadow-lg z-50 hidden group-hover:block w-32 whitespace-normal">${tooltipText}</div>` : ''}
                         </div>
                     `
                 };
@@ -5293,10 +5487,11 @@
                 localStorage.setItem(CATALOG_PROF_KEY, JSON.stringify(validNames));
                 catalogProfessionals = validNames;
 
-                setTimeout(() => {
-                    alert(`🧹 LIMPIEZA COMPLETADA:\n\nSe eliminaron/fusionaron ${deleted} registros "fantasma".\nLa página se recargará para aplicar los cambios.`);
-                    location.reload();
-                }, 100);
+                // setTimeout(() => {
+                //    console.log(`🧹 LIMPIEZA SILENCIOSA COMPLETADA: ${deleted} registros.`);
+                //    // alert(`🧹 LIMPIEZA COMPLETADA...`); // Silenced by user request
+                //    // location.reload(); // No reload needed if silent
+                // }, 100);
             }
         }
 
