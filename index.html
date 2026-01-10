@@ -2608,7 +2608,9 @@
                 });
             });
 
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+            // V85 FIX: Use the central saveEvents function to ensure Cloud Sync!
+            // localStorage.setItem(STORAGE_KEY, JSON.stringify(events)); <-- OLD BUGGY WAY
+            saveEvents(events); // <-- NEW CORRECT WAY
             calendar.refetchEvents(); // Actualizar calendario principal
             if (calendarRural) {
                 calendarRural.gotoDate(startDate);
