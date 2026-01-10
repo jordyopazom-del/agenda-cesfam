@@ -3427,12 +3427,34 @@
                     if (filterProfSelect) {
                         const currentVal = filterProfSelect.value;
                         filterProfSelect.innerHTML = '<option value="">👤 Todos los Profesionales</option>';
-                        // Obtener lista única de nombres del directorio
+
+                        // 1. Identificar Profesionales con Actividad Rural Real
+                        const ruralActiveProfs = new Set();
+                        if (typeof getEvents === 'function') {
+                            const allEvents = getEvents();
+                            allEvents.forEach(e => {
+                                if (e.extendedProps && e.extendedProps.ruralEstablishmentId && e.extendedProps.profesional) {
+                                    ruralActiveProfs.add(e.extendedProps.profesional);
+                                }
+                            });
+                        }
+
+                        // 2. Filtrar Directorio
                         const staffNames = Object.keys(staffDirectory).sort();
+
                         staffNames.forEach(name => {
                             if (name === '[object Object]' || name === 'undefined' || !name) return; // Skip garbage
                             const prof = staffDirectory[name];
-                            filterProfSelect.innerHTML += `<option value="${name}">${name} (${prof.profession || 'Sin Prof.'})</option>`;
+
+                            // CRITERIO DE FILTRO: 
+                            // A. Pertenece a sector Rural (por contrato/asignación)
+                            // B. O tiene eventos rurales en el calendario (cubrió un turno)
+                            const isRuralSector = prof.sector && prof.sector.toLowerCase().includes('rural');
+                            const hasRuralActivity = ruralActiveProfs.has(name);
+
+                            if (isRuralSector || hasRuralActivity) {
+                                filterProfSelect.innerHTML += `<option value="${name}">${name} (${prof.profession || 'Sin Prof.'})</option>`;
+                            }
                         });
                         filterProfSelect.value = currentVal;
                     }
