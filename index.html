@@ -3194,7 +3194,12 @@
 
             // Titulo
             // Titulo mejorado
-            const profesional = event.extendedProps.profesional || 'Sin Asignar';
+            // Titulo mejorado
+            let profesional = event.extendedProps.profesional || 'Sin Asignar';
+            if (event.title && (event.title.includes('FERIADO') || event.title.includes('Feriado'))) {
+                profesional = "FERIADO";
+            }
+
             const fecha = event.start.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
             const establishmentName = (event.extendedProps.ruralEstablishmentId && ruralConfig[event.extendedProps.ruralEstablishmentId])
                 ? ruralConfig[event.extendedProps.ruralEstablishmentId].name
@@ -3421,7 +3426,7 @@
                              style="background-color: ${color}; color: #1F2937; border-left: 3px solid rgba(0,0,0,0.1); opacity: ${opacity};">
                             
                             <div class="font-bold truncate leading-tight" style="text-decoration: ${decoration}">
-                                ${icon}${arg.event.extendedProps.profesional || 'Sin Asignar'}
+                                ${icon}${(arg.event.title && (arg.event.title.includes('FERIADO') || arg.event.title.includes('Feriado'))) ? 'FERIADO' : (arg.event.extendedProps.profesional || 'Sin Asignar')}
                             </div>
                             
                             <!-- Custom Hover (Solo PC) -->
@@ -4935,7 +4940,12 @@
                             doc.setFontSize(8);
                             doc.setTextColor(0); // Negro por defecto para contraste básico
 
-                            const text = ev.extendedProps.profesional || 'Sin Asignar';
+                            let text = ev.extendedProps.profesional || 'Sin Asignar';
+                            // V92: Fix PDF Label for Holidays
+                            if (ev.title && (ev.title.includes('FERIADO') || ev.title.includes('Feriado'))) {
+                                text = "FERIADO";
+                            }
+
                             // Truncar si es muy largo
                             let displayText = text;
                             if (text.length > 25) displayText = text.substring(0, 23) + '...';
