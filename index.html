@@ -2642,7 +2642,7 @@
                         const chunk = eventsToSave.slice(i, i + batchSize);
                         chunk.forEach(ev => {
                             const ref = db.collection("events").doc(ev.id);
-                            batch.set(ev); // Set crea el documento
+                            batch.set(ref, ev); // Set crea el documento
                         });
                         await batch.commit();
                         console.log(`Batch saved.`);
