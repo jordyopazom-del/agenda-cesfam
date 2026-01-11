@@ -531,51 +531,23 @@
                             class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-6 rounded shadow-md flex items-center gap-2 transition-transform hover:scale-105">
                             ⚡ Generar Distribución
                         </button>
-                        <button onclick="clearRuralMonth()"
-                            class="text-gray-400 hover:text-red-500 text-sm underline ml-auto">
-                            🗑️ Limpiar Mes
+                        // Removed deprecated local-clean button
+                        <button onclick="clearRuralCurrentView()"
+                            class="text-red-500 hover:text-red-700 text-sm font-bold ml-2 underline"
+                            title="Borrar toda la distribución del mes visible">
+                            🗑️ Limpiar Mes Vista
                         </button>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        </div>
-
-        <!-- V32: Vista Distribución Rural (Calendario Full) -->
-        <div id="viewDistribucion" class="hidden h-full flex flex-col bg-white">
-            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-                <h2 class="text-xl font-bold text-cesfam-navy flex items-center gap-2">
-                    🗓️ Distribución Rural
-                    <span class="text-sm font-normal text-gray-500">(Vista Mensual)</span>
-                </h2>
-                <div class="flex gap-2 items-center">
-                    <!-- V33: Filtro por Posta -->
-                    <select id="filterRuralEst" onchange="calendarRural.refetchEvents()"
-                        class="text-sm border-gray-300 rounded-md shadow-sm focus:ring-cesfam-sky focus:border-cesfam-sky mr-2">
-                        <option value="">🔍 Todas las Postas</option>
-                        <!-- Se poblará dinámicamente -->
-                    </select>
-
-                    <!-- V42: Filtro por Profesional (Rural) -->
-                    <select id="filterRuralProf" onchange="calendarRural.refetchEvents()"
-                        class="text-sm border-gray-300 rounded-md shadow-sm focus:ring-cesfam-sky focus:border-cesfam-sky mr-2">
-                        <option value="">👤 Todos los Profesionales</option>
-                        <!-- Se poblará dinámicamente -->
-                    </select>
-                    <!-- V41: Botón PDF Rural Visual -->
-                    <button onclick="downloadRuralPDF()"
-                        class="bg-red-600 hover:bg-red-700 text-white text-sm font-bold py-1 px-3 rounded flex items-center gap-1 transition duration-150 ml-2"
-                        title="Descargar Reporte Visual (Snapshot)">
-                        🖨️ PDF Visual
-                    </button>
+                <div class="flex-1 p-4 overflow-hidden">
+                    <div id="calendarRural" class="h-full"></div>
                 </div>
             </div>
-            <div class="flex-1 p-4 overflow-hidden">
-                <div id="calendarRural" class="h-full"></div>
-            </div>
-        </div>
     </main>
+
+    <!-- ... -->
+
+
 
     <!-- V85: Modal Edición Rural (Estado/Alertas) -->
     <div id="ruralEventModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-[70]">
@@ -636,7 +608,8 @@
         class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50 flex items-center justify-center">
         <div class="relative p-5 border w-96 shadow-lg rounded-md bg-white">
             <div class="mt-3">
-                <h3 class="text-lg leading-6 font-medium text-gray-900 text-center mb-4" id="modalTitle">Editar Evento
+                <h3 class="text-lg leading-6 font-medium text-gray-900 text-center mb-4" id="modalTitle">Editar
+                    Evento
                 </h3>
 
                 <form id="editForm" class="space-y-4">
@@ -819,7 +792,8 @@
         <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg p-6 transform transition-all scale-100
     modal-content">
             <div class="flex justify-between items-center mb-4 border-b pb-3">
-                <h3 id="modalStaffInfoTitle" class="text-xl font-bold text-cesfam-navy">Información del Funcionario</h3>
+                <h3 id="modalStaffInfoTitle" class="text-xl font-bold text-cesfam-navy">Información del Funcionario
+                </h3>
                 <button onclick="closeStaffInfoModal()" class="text-gray-400 hover:text-gray-600 text-2xl">
                     ×
                 </button>
@@ -5630,6 +5604,82 @@
 
         // Llamar al inicio
         initCuratedLists();
+
+        // V86: Shared Cloud Deletion Logic
+        async function deleteRuralEventsOfMonth(year, monthIndex, silent = false) {
+            console.log(`🧹 Iniciando limpieza rural para: ${year}-${monthIndex + 1} (Silent: ${silent})`);
+            const events = getEvents();
+
+            // 1. Identificar Eventos a Borrar
+            const eventsToDelete = events.filter(e => {
+                const d = new Date(e.start);
+                return e.extendedProps.tipo === 'RURAL' &&
+                    d.getFullYear() === year &&
+                    d.getMonth() === monthIndex;
+            });
+
+            if (eventsToDelete.length === 0) {
+                if (!silent) alert('No hay eventos rurales para borrar en este mes.');
+                return;
+            }
+
+            // 2. Batch Cloud Delete
+            if (typeof db !== 'undefined' && db && !silent) { // Si es silent (generación), asumimos que el batch write sobreecribirá o que preferimos velocidad? 
+                // NO! Si es generación, DEBEMOS borrar para evitar duplicados. 
+                // Pero wait, 'batch.set(ref)' Sobreescribe si el ID es el mismo.
+                // PERO los IDs son aleatorios (crypto.randomUUID) en cada generación!
+                // Por lo tanto, SIEMPRE debemos borrar los viejos.
+            }
+
+            if (typeof db !== 'undefined' && db) {
+                const batchSize = 400;
+                // Copied loop for safety
+                for (let i = 0; i < eventsToDelete.length; i += batchSize) {
+                    const batch = db.batch();
+                    const chunk = eventsToDelete.slice(i, i + batchSize);
+                    chunk.forEach(ev => {
+                        const ref = db.collection("events").doc(ev.id);
+                        batch.delete(ref);
+                    });
+                    await batch.commit();
+                    console.log(`Cloud Delete Batch ${i / batchSize + 1} Done.`);
+                }
+            }
+
+            // 3. Update Local Storage
+            const keptEvents = events.filter(e => {
+                const d = new Date(e.start);
+                const isRural = e.extendedProps.tipo === 'RURAL';
+                const isTargetMonth = d.getFullYear() === year && d.getMonth() === monthIndex;
+                return !(isRural && isTargetMonth);
+            });
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(keptEvents));
+
+            // 4. Refetch UI
+            if (calendar) calendar.refetchEvents();
+            if (calendarRural) calendarRural.refetchEvents();
+
+            if (!silent) alert('Limpieza completada en Nube y Local.');
+        }
+
+        async function clearRuralCurrentView() {
+            if (!calendarRural) return;
+            const currentDate = calendarRural.getDate();
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const monthName = currentDate.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+
+            if (!confirm(`PELIGRO: ¿Estás seguro de borrar TODA la distribución rural de ${monthName}?\n\nEsta acción es irreversible.`)) return;
+            if (!confirm(`Confirmación Final: ¿Eliminar ${monthName}?`)) return;
+
+            try {
+                await deleteRuralEventsOfMonth(year, month);
+            } catch (err) {
+                console.error(err);
+                alert("Error: " + err.message);
+            }
+        }
     </script>
     <!-- V60: Modal Creación Manual RURAL -->
     <div id="modalRuralManual"
