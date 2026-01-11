@@ -915,6 +915,48 @@
             alert("⚠️ ALERTA TÉCNICA ⚠️\n\nSe detectó un error interno:\n" + msg + "\n\nLínea: " + line + "\n\nPor favor reporte esto.");
         };
 
+        // V90: Holiday System (GLOBAL SCOPE - NUCLEAR OPTION)
+        // Moved here to ensure visibility across all scopes
+        const CHILE_HOLIDAYS = [
+            '2024-01-01', '2024-03-29', '2024-03-30', '2024-05-01', '2024-05-21',
+            '2024-06-20', '2024-06-29', '2024-07-16', '2024-08-15', '2024-09-18', '2024-09-19',
+            '2024-10-12', '2024-10-27', '2024-10-31', '2024-11-01', '2024-12-08', '2024-12-25',
+            '2025-01-01', '2025-04-18', '2025-04-19', '2025-05-01', '2025-05-21',
+            '2025-06-20', '2025-06-29', '2025-07-16', '2025-08-15', '2025-09-18', '2025-09-19',
+            '2025-10-12', '2025-10-31', '2025-11-01', '2025-11-16', // Elecciones?
+            '2025-12-08', '2025-12-25',
+            '2026-01-01', '2026-04-03', '2026-04-04', '2026-05-01', '2026-05-21',
+            '2026-06-21', '2026-06-29', '2026-07-16', '2026-08-15', '2026-09-18',
+            '2026-09-19', '2026-10-12', '2026-10-31', '2026-11-01', '2026-12-08',
+            '2026-12-25'
+        ];
+
+        function getHolidayEvents() {
+            return CHILE_HOLIDAYS.map(date => ({
+                title: '🔴 FERIADO',
+                start: date,
+                allDay: true,
+                editable: false,
+                display: 'background',
+                backgroundColor: '#fee2e2',
+                classNames: ['holiday-bg-event'] // CSS hook just in case
+            }));
+        }
+
+        function getHolidayLabels() {
+            return CHILE_HOLIDAYS.map(date => ({
+                title: '📌 FERIADO',
+                start: date,
+                allDay: true,
+                editable: false,
+                display: 'block',
+                backgroundColor: '#ef4444',
+                borderColor: '#b91c1c',
+                textColor: '#ffffff'
+            }));
+        }
+
+
         // --- Configuración y Estado ---
         let calendar;
         let calendarRural; // V32
@@ -1225,41 +1267,7 @@
 
         let tsProf, tsAct; // Variables globales para instancias Tom Select
 
-        // V90: Holiday System (GLOBAL SCOPE)
-        const CHILE_HOLIDAYS = [
-            '2024-01-01', '2024-03-29', '2024-03-30', '2024-05-01', '2024-05-21',
-            '2024-06-20', '2024-06-29', '2024-07-16', '2024-08-15', '2024-09-18', '2024-09-19',
-            '2024-10-12', '2024-10-27', '2024-10-31', '2024-11-01', '2024-12-08', '2024-12-25',
-            '2025-01-01', '2025-04-18', '2025-04-19', '2025-05-01', '2025-05-21',
-            '2025-06-20', '2025-06-29', '2025-07-16', '2025-08-15', '2025-09-18', '2025-09-19',
-            '2025-10-12', '2025-10-31', '2025-11-01', '2025-12-08', '2025-12-25',
-            '2026-01-01', '2026-04-03', '2026-04-04', '2026-05-01', '2026-05-21'
-        ];
 
-        function getHolidayEvents() {
-            return CHILE_HOLIDAYS.map(date => ({
-                title: '🔴 FERIADO',
-                start: date,
-                allDay: true,
-                editable: false,
-                display: 'background',
-                backgroundColor: '#fee2e2',
-                classNames: ['holiday-bg-event'] // CSS hook just in case
-            }));
-        }
-
-        function getHolidayLabels() {
-            return CHILE_HOLIDAYS.map(date => ({
-                title: '📌 FERIADO',
-                start: date,
-                allDay: true,
-                editable: false,
-                display: 'block',
-                backgroundColor: '#ef4444',
-                borderColor: '#b91c1c',
-                textColor: '#ffffff'
-            }));
-        }
 
         function loadCatalogs() {
             // --- 1. Inicializar Tom Select: Profesionales ---
@@ -2495,25 +2503,7 @@
         })();
 
         // V32: Algoritmo de Distribución Rural
-        // V61: Feriados Chile (2024-2026)
-        const CHILE_HOLIDAYS = [
-            // 2024
-            '2024-01-01', '2024-03-29', '2024-03-30', '2024-05-01', '2024-05-21',
-            '2024-06-09', '2024-06-20', '2024-06-29', '2024-07-16', '2024-08-15',
-            '2024-09-18', '2024-09-19', '2024-09-20', '2024-10-12', '2024-10-27',
-            '2024-10-31', '2024-11-01', '2024-12-08', '2024-12-25',
-            // 2025
-            '2025-01-01', '2025-04-18', '2025-04-19', '2025-05-01', '2025-05-21',
-            '2025-06-20', '2025-06-29', '2025-07-16', '2025-08-15', '2025-09-18',
-            '2025-09-19', '2025-10-12', '2025-10-31', '2025-11-01', '2025-11-16', // Elecciones?
-            '2025-12-08', '2025-12-25',
-            // 2026
-            '2026-01-01', '2026-04-03', '2026-04-04', '2026-05-01', '2026-05-21',
-            '2026-06-21', '2026-06-29', '2026-07-16', '2026-08-15', '2026-09-18',
-            '2026-09-19', '2026-10-12', '2026-10-31', '2026-11-01', '2026-12-08',
-            '2026-12-25'
-        ];
-
+        // V90: Usar constante global CHILE_HOLIDAYS definida arriba
         function isHoliday(dateObj) {
             const y = dateObj.getFullYear();
             const m = String(dateObj.getMonth() + 1).padStart(2, '0');
