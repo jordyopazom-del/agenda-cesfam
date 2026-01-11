@@ -1323,6 +1323,41 @@
                 }
             });
 
+            // V90: Holiday System (GLOBAL SCOPE)
+            const CHILE_HOLIDAYS = [
+                '2024-01-01', '2024-03-29', '2024-03-30', '2024-05-01', '2024-05-21',
+                '2024-06-20', '2024-06-29', '2024-07-16', '2024-08-15', '2024-09-18', '2024-09-19',
+                '2024-10-12', '2024-10-27', '2024-10-31', '2024-11-01', '2024-12-08', '2024-12-25',
+                '2025-01-01', '2025-04-18', '2025-04-19', '2025-05-01', '2025-05-21',
+                '2025-06-20', '2025-06-29', '2025-07-16', '2025-08-15', '2025-09-18', '2025-09-19',
+                '2025-10-12', '2025-10-31', '2025-11-01', '2025-12-08', '2025-12-25',
+                '2026-01-01', '2026-04-03', '2026-04-04', '2026-05-01', '2026-05-21'
+            ];
+
+            function getHolidayEvents() {
+                return CHILE_HOLIDAYS.map(date => ({
+                    title: '🔴 FERIADO',
+                    start: date,
+                    allDay: true,
+                    editable: false,
+                    display: 'background',
+                    backgroundColor: '#fee2e2',
+                    classNames: ['holiday-bg-event'] // CSS hook just in case
+                }));
+            }
+
+            function getHolidayLabels() {
+                return CHILE_HOLIDAYS.map(date => ({
+                    title: '📌 FERIADO',
+                    start: date,
+                    allDay: true,
+                    editable: false,
+                    display: 'block',
+                    backgroundColor: '#ef4444',
+                    borderColor: '#b91c1c',
+                    textColor: '#ffffff'
+                }));
+            }
             // --- 3. Poblar Datalist Categorías (Legacy Select Normal) ---
             const listCat = document.getElementById('listCategorias');
             listCat.innerHTML = '';
@@ -1666,42 +1701,7 @@
             // V27.2 FIX: Inicializar explícitamente para que la primera carga funcione
             let currentViewName = 'timeGridWeek'; // Changed to timeGridWeek
 
-            // V90: Holiday System
-            const CHILE_HOLIDAYS = [
-                '2024-01-01', '2024-03-29', '2024-03-30', '2024-05-01', '2024-05-21',
-                '2024-06-20', '2024-06-29', '2024-07-16', '2024-08-15', '2024-09-18', '2024-09-19',
-                '2024-10-12', '2024-10-27', '2024-10-31', '2024-11-01', '2024-12-08', '2024-12-25',
-                '2025-01-01', '2025-04-18', '2025-04-19', '2025-05-01', '2025-05-21',
-                '2025-06-20', '2025-06-29', '2025-07-16', '2025-08-15', '2025-09-18', '2025-09-19',
-                '2025-10-12', '2025-10-31', '2025-11-01', '2025-12-08', '2025-12-25',
-                '2026-01-01', '2026-04-03', '2026-04-04', '2026-05-01', '2026-05-21'
-            ];
 
-            function getHolidayEvents() {
-                return CHILE_HOLIDAYS.map(date => ({
-                    title: '🔴 FERIADO',
-                    start: date,
-                    allDay: true,
-                    editable: false,
-                    display: 'background',
-                    backgroundColor: '#fee2e2',
-                    classNames: ['holiday-bg-event'] // CSS hook just in case
-                }));
-            }
-
-            // Also return label events for visibility if needed
-            function getHolidayLabels() {
-                return CHILE_HOLIDAYS.map(date => ({
-                    title: '📌 FERIADO',
-                    start: date,
-                    allDay: true,
-                    editable: false,
-                    display: 'block',
-                    backgroundColor: '#ef4444',
-                    borderColor: '#b91c1c',
-                    textColor: '#ffffff'
-                }));
-            }
 
             calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'timeGridWeek', // Forced Weekly View
