@@ -531,18 +531,44 @@
                             class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-6 rounded shadow-md flex items-center gap-2 transition-transform hover:scale-105">
                             ⚡ Generar Distribución
                         </button>
-                        // Removed deprecated local-clean button
-                        <button onclick="clearRuralCurrentView()"
-                            class="text-red-500 hover:text-red-700 text-sm font-bold ml-2 underline"
-                            title="Borrar toda la distribución del mes visible">
-                            🗑️ Limpiar Mes Vista
-                        </button>
+
                     </div>
                 </div>
-                <div class="flex-1 p-4 overflow-hidden">
-                    <div id="calendarRural" class="h-full"></div>
+                <!-- V32: Vista Distribución Rural (Calendario Full) -->
+                <div id="viewDistribucion" class="hidden h-full flex flex-col bg-white">
+                    <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                        <h2 class="text-xl font-bold text-cesfam-navy flex items-center gap-2">
+                            🗓️ Distribución Rural
+                            <span class="text-sm font-normal text-gray-500">(Vista Mensual)</span>
+                        </h2>
+                        <div class="flex gap-2 items-center">
+                            <select id="filterRuralEst" onchange="calendarRural.refetchEvents()"
+                                class="text-sm border-gray-300 rounded-md shadow-sm focus:ring-cesfam-sky focus:border-cesfam-sky mr-2">
+                                <option value="">🔍 Todas las Postas</option>
+                            </select>
+
+                            <select id="filterRuralProf" onchange="calendarRural.refetchEvents()"
+                                class="text-sm border-gray-300 rounded-md shadow-sm focus:ring-cesfam-sky focus:border-cesfam-sky mr-2">
+                                <option value="">👤 Todos los Profesionales</option>
+                            </select>
+
+                            <button onclick="downloadRuralPDF()"
+                                class="bg-red-600 hover:bg-red-700 text-white text-sm font-bold py-1 px-3 rounded flex items-center gap-1 transition duration-150 ml-2"
+                                title="Descargar Reporte Visual (Snapshot)">
+                                🖨️ PDF Visual
+                            </button>
+                            <!-- MOVED BUTTON -->
+                            <button onclick="clearRuralCurrentView()"
+                                class="text-red-500 hover:text-red-700 text-sm font-bold ml-2 underline"
+                                title="Borrar toda la distribución del mes visible">
+                                🗑️ Limpiar Mes Vista
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1 p-4 overflow-hidden">
+                        <div id="calendarRural" class="h-full"></div>
+                    </div>
                 </div>
-            </div>
     </main>
 
     <!-- ... -->
