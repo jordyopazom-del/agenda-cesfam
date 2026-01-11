@@ -3162,7 +3162,9 @@
             // Titulo mejorado
             const profesional = event.extendedProps.profesional || 'Sin Asignar';
             const fecha = event.start.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
-            const establishmentName = event.title || 'Establecimiento Desconocido';
+            const establishmentName = (event.extendedProps.ruralEstablishmentId && ruralConfig[event.extendedProps.ruralEstablishmentId])
+                ? ruralConfig[event.extendedProps.ruralEstablishmentId].name
+                : (event.title || 'Establecimiento Desconocido');
 
             document.getElementById('ruralModalTitle').innerHTML = `
                 <span class="block font-bold text-gray-800 text-base">${profesional}</span>
