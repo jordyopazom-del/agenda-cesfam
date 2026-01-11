@@ -1666,6 +1666,43 @@
             // V27.2 FIX: Inicializar explícitamente para que la primera carga funcione
             let currentViewName = 'timeGridWeek'; // Changed to timeGridWeek
 
+            // V90: Holiday System
+            const CHILE_HOLIDAYS = [
+                '2024-01-01', '2024-03-29', '2024-03-30', '2024-05-01', '2024-05-21',
+                '2024-06-20', '2024-06-29', '2024-07-16', '2024-08-15', '2024-09-18', '2024-09-19',
+                '2024-10-12', '2024-10-27', '2024-10-31', '2024-11-01', '2024-12-08', '2024-12-25',
+                '2025-01-01', '2025-04-18', '2025-04-19', '2025-05-01', '2025-05-21',
+                '2025-06-20', '2025-06-29', '2025-07-16', '2025-08-15', '2025-09-18', '2025-09-19',
+                '2025-10-12', '2025-10-31', '2025-11-01', '2025-12-08', '2025-12-25',
+                '2026-01-01', '2026-04-03', '2026-04-04', '2026-05-01', '2026-05-21'
+            ];
+
+            function getHolidayEvents() {
+                return CHILE_HOLIDAYS.map(date => ({
+                    title: '🔴 FERIADO',
+                    start: date,
+                    allDay: true,
+                    editable: false,
+                    display: 'background',
+                    backgroundColor: '#fee2e2',
+                    classNames: ['holiday-bg-event'] // CSS hook just in case
+                }));
+            }
+
+            // Also return label events for visibility if needed
+            function getHolidayLabels() {
+                return CHILE_HOLIDAYS.map(date => ({
+                    title: '📌 FERIADO',
+                    start: date,
+                    allDay: true,
+                    editable: false,
+                    display: 'block',
+                    backgroundColor: '#ef4444',
+                    borderColor: '#b91c1c',
+                    textColor: '#ffffff'
+                }));
+            }
+
             calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'timeGridWeek', // Forced Weekly View
                 initialDate: '2024-01-01', // Fixed Monday to anchor the template
@@ -1837,7 +1874,10 @@
 
                     // V37: Simplificación Visual - Sin Agrupación
                     // Devolver siempre eventos individuales
-                    successCallback(events);
+
+                    // V90: Inject Holidays
+                    const holidays = getHolidayLabels(); // Use Labels for Urban (Week view needs visibility)
+                    successCallback(events.concat(holidays));
                 },
 
                 // --- V74: CLOUD WRITES (CRUD) ---
@@ -3298,6 +3338,8 @@
             },
             locale: 'es',
             weekends: false, // V33: Ocultar fines de semana
+            fixedWeekCount: false, // V91: Hide next month days
+            showNonCurrentDates: false, // V91: Hide non-current dates
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
@@ -3332,52 +3374,58 @@
                     }
                 });
 
-                successCallback(events);
+            }
+        });
+
+        // V90: Inject Holidays (Backgrounds looks better in Month View)
+        const holidayLabels = getHolidayLabels();
+
+        successCallback(events.concat(holidayLabels));
             },
 
-            // --- V74: CLOUD WRITES (RURAL) ---
-            eventChange: function (info) {
-                if (!db) { saveEvents(getEvents()); return; }
-                const ev = info.event;
-                db.collection("events").doc(ev.id).update({
-                    start: ev.start,
-                    end: ev.end
-                }).catch(err => console.error("Error updating rural:", err));
-            },
+        // --- V74: CLOUD WRITES (RURAL) ---
+        eventChange: function (info) {
+            if (!db) { saveEvents(getEvents()); return; }
+            const ev = info.event;
+            db.collection("events").doc(ev.id).update({
+                start: ev.start,
+                end: ev.end
+            }).catch(err => console.error("Error updating rural:", err));
+        },
 
-            eventRemove: function (info) {
-                if (!db) { saveEvents(getEvents()); return; }
-                db.collection("events").doc(info.event.id).delete()
-                    .catch(err => console.error("Error deleting rural:", err));
-            },
-            eventContent: function (arg) {
-                // V60 Fix: Lookup Color Directly from Config to prevent Stale/Gray colors
-                const estId = arg.event.extendedProps.ruralEstablishmentId;
-                let color = arg.event.backgroundColor || '#E5E7EB';
+        eventRemove: function (info) {
+            if (!db) { saveEvents(getEvents()); return; }
+            db.collection("events").doc(info.event.id).delete()
+                .catch(err => console.error("Error deleting rural:", err));
+        },
+        eventContent: function (arg) {
+            // V60 Fix: Lookup Color Directly from Config to prevent Stale/Gray colors
+            const estId = arg.event.extendedProps.ruralEstablishmentId;
+            let color = arg.event.backgroundColor || '#E5E7EB';
 
-                if (estId && ruralConfig[estId]) {
-                    color = getEstablishmentColor(ruralConfig[estId]);
-                }
+            if (estId && ruralConfig[estId]) {
+                color = getEstablishmentColor(ruralConfig[estId]);
+            }
 
-                // V85: Visuals for Alerts
-                const status = arg.event.extendedProps.status || 'normal';
-                let icon = '';
-                let opacity = '1';
-                let decoration = 'none';
+            // V85: Visuals for Alerts
+            const status = arg.event.extendedProps.status || 'normal';
+            let icon = '';
+            let opacity = '1';
+            let decoration = 'none';
 
-                if (status === 'warning') {
-                    icon = '⚠️ ';
-                } else if (status === 'cancelled') {
-                    icon = '❌ ';
-                    opacity = '0.6';
-                    decoration = 'line-through';
-                }
+            if (status === 'warning') {
+                icon = '⚠️ ';
+            } else if (status === 'cancelled') {
+                icon = '❌ ';
+                opacity = '0.6';
+                decoration = 'line-through';
+            }
 
-                // Tooltip Content (Browser Native Title for Simplicity & Mobile Touch Hold)
-                const tooltipText = arg.event.extendedProps.statusMessage || (status === 'cancelled' ? 'Ronda Cancelada' : '');
+            // Tooltip Content (Browser Native Title for Simplicity & Mobile Touch Hold)
+            const tooltipText = arg.event.extendedProps.statusMessage || (status === 'cancelled' ? 'Ronda Cancelada' : '');
 
-                return {
-                    html: `
+            return {
+                html: `
                         <div class="w-full h-full px-1 py-0.5 rounded shadow-sm overflow-visible text-xs flex flex-col justify-center relative group" 
                              title="${tooltipText}"
                              style="background-color: ${color}; color: #1F2937; border-left: 3px solid rgba(0,0,0,0.1); opacity: ${opacity};">
@@ -3390,13 +3438,13 @@
                             ${tooltipText ? `<div class="absolute bottom-full left-0 bg-gray-800 text-white text-[10px] p-2 rounded shadow-lg z-50 hidden group-hover:block w-32 whitespace-normal">${tooltipText}</div>` : ''}
                         </div>
                     `
-                };
-            },
-            eventDrop: function (info) {
-                // Permitir mover eventos en esta vista también
-                const event = info.event;
-                updateEventTime(event);
-            }
+            };
+        },
+        eventDrop: function (info) {
+            // Permitir mover eventos en esta vista también
+            const event = info.event;
+            updateEventTime(event);
+        }
         });
         calendarRural.render();
 
