@@ -3159,9 +3159,16 @@
             document.getElementById('ruralModalEventId').value = event.id;
 
             // Titulo
+            // Titulo mejorado
             const profesional = event.extendedProps.profesional || 'Sin Asignar';
             const fecha = event.start.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
-            document.getElementById('ruralModalTitle').innerText = `${profesional} - ${fecha}`;
+            const establishmentName = event.title || 'Establecimiento Desconocido';
+
+            document.getElementById('ruralModalTitle').innerHTML = `
+                <span class="block font-bold text-gray-800 text-base">${profesional}</span>
+                <span class="block text-gray-500 mb-2 capitalize">${fecha}</span>
+                <span class="block text-indigo-600 font-bold border-t pt-1">Establecimiento: ${establishmentName}</span>
+            `;
 
             // Cargar datos existentes
             currentRuralStatus = event.extendedProps.status || 'normal';
