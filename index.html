@@ -2798,8 +2798,19 @@
 
                 // V31: Filtrar Staff según Sector Base
                 let filteredStaff = Object.keys(staffDirectory);
+                // V85 FIX: User requested to see ALL professionals or at least support staff.
+                // Strict filtering by 'est.baseSector' hides urban staff who support rural.
+                // We will relax this to show ALL staff if they have no sector, OR simplify to show everyone sorted.
+                // To keep it clean but functional:
+                // Option A: Radius Search (Show Rural + Support) - Hard to define "Support".
+                // Option B: Show All (Let user filter by typing in dropdown if it was searchable, but it's native).
+                // Option C: Smart Filter again (Show Rural + Anyone with history).
+
+                // DECISION: Show ALL staff. The user explicitly wants to add people who aren't currently there.
+                // effectively removing the filter:
                 if (est.baseSector) {
-                    filteredStaff = filteredStaff.filter(name => staffDirectory[name].sector === est.baseSector);
+                    // filteredStaff = filteredStaff.filter(name => staffDirectory[name].sector === est.baseSector); 
+                    // COMMENTED OUT to allow selecting Urban staff for Rural teams.
                 }
 
                 const staffOptions = filteredStaff.sort().map(name =>
@@ -3430,13 +3441,28 @@
                         const currentVal = filterProfSelect.value;
                         filterProfSelect.innerHTML = '<option value="">👤 Todos los Profesionales</option>';
 
-                        // 1. Identificar Profesionales con Actividad Rural Real
+                        // 1. Identificar Profesionales RELEVANTES para Rural
+                        // Criterio A: Tienen eventos rurales (Historial)
+                        // Criterio B: Están en un equipo rural (Configuración)
                         const ruralActiveProfs = new Set();
+
+                        // A. Historial
                         if (typeof getEvents === 'function') {
                             const allEvents = getEvents();
                             allEvents.forEach(e => {
                                 if (e.extendedProps && e.extendedProps.ruralEstablishmentId && e.extendedProps.profesional) {
                                     ruralActiveProfs.add(e.extendedProps.profesional);
+                                }
+                            });
+                        }
+
+                        // B. Configuración (Teams) - V85 FIX
+                        if (ruralConfig) {
+                            Object.values(ruralConfig).forEach(est => {
+                                if (est.team && Array.isArray(est.team)) {
+                                    est.team.forEach(member => {
+                                        if (member.name) ruralActiveProfs.add(member.name);
+                                    });
                                 }
                             });
                         }
@@ -3448,13 +3474,12 @@
                             if (name === '[object Object]' || name === 'undefined' || !name) return; // Skip garbage
                             const prof = staffDirectory[name];
 
-                            // CRITERIO DE FILTRO: 
-                            // A. Pertenece a sector Rural (por contrato/asignación)
-                            // B. O tiene eventos rurales en el calendario (cubrió un turno)
+                            // Si está en el Set de activos/asignados, se muestra.
+                            // O si tiene el sector rural explícito (legacy)
                             const isRuralSector = prof.sector && prof.sector.toLowerCase().includes('rural');
-                            const hasRuralActivity = ruralActiveProfs.has(name);
+                            const isRelevant = ruralActiveProfs.has(name);
 
-                            if (isRuralSector || hasRuralActivity) {
+                            if (isRuralSector || isRelevant) {
                                 filterProfSelect.innerHTML += `<option value="${name}">${name} (${prof.profession || 'Sin Prof.'})</option>`;
                             }
                         });
