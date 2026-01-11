@@ -2478,189 +2478,193 @@
             return CHILE_HOLIDAYS.includes(dateStr);
         }
 
-        function generateRuralDistribution() {
-            const monthInput = document.getElementById('ruralGenerationMonth').value;
-            if (!monthInput) {
-                alert('Por favor selecciona un mes para generar la distribución.');
-                return;
-            }
+        async function generateRuralDistribution() {
+            try {
+                const monthInput = document.getElementById('ruralGenerationMonth').value;
+                if (!monthInput) {
+                    alert('Por favor selecciona un mes para generar la distribución.');
+                    return;
+                }
 
-            const [year, month] = monthInput.split('-').map(Number);
-            const startDate = new Date(year, month - 1, 1);
-            const endDate = new Date(year, month, 0); // Último día del mes
+                const [year, month] = monthInput.split('-').map(Number);
+                const startDate = new Date(year, month - 1, 1);
+                const endDate = new Date(year, month, 0); // Último día del mes
 
-            // 1. Limpieza: Borrar eventos rurales previos en este mes
-            let events = getEvents();
-            // Filtrar eventos que NO sean de este mes O que NO sean rurales (para preservar lo manual/urbano)
-            // Asumimos que los eventos rurales tienen una propiedad 'ruralEstablishmentId'
-            // O si no la tienen, podríamos borrarlos todos si el usuario acepta, pero mejor ser selectivos.
-            // Para V32, vamos a marcar los eventos generados con 'ruralAuto: true'
-            events = events.filter(e => {
-                const eDate = new Date(e.start);
-                const isSameMonth = eDate.getFullYear() === year && eDate.getMonth() === (month - 1);
-                const isRuralAuto = e.extendedProps && e.extendedProps.ruralAuto;
-                return !(isSameMonth && isRuralAuto);
-            });
+                // 1. Limpieza: Borrar eventos rurales previos en este mes
+                let events = getEvents();
+                // Filtrar eventos que NO sean de este mes O que NO sean rurales (para preservar lo manual/urbano)
+                // Asumimos que los eventos rurales tienen una propiedad 'ruralEstablishmentId'
+                // O si no la tienen, podríamos borrarlos todos si el usuario acepta, pero mejor ser selectivos.
+                // Para V32, vamos a marcar los eventos generados con 'ruralAuto: true'
+                events = events.filter(e => {
+                    const eDate = new Date(e.start);
+                    const isSameMonth = eDate.getFullYear() === year && eDate.getMonth() === (month - 1);
+                    const isRuralAuto = e.extendedProps && e.extendedProps.ruralAuto;
+                    return !(isSameMonth && isRuralAuto);
+                });
 
-            // 2. Generación
-            const establishments = Object.values(ruralConfig);
-            let generatedCount = 0;
+                // 2. Generación
+                const establishments = Object.values(ruralConfig);
+                let generatedCount = 0;
 
-            establishments.forEach((est, index) => {
-                // Colores por Posta (Secuencial para asegurar variedad)
-                const colors = ['#F97316', '#22C55E', '#3B82F6', '#A855F7', '#EC4899', '#EAB308', '#14B8A6', '#F43F5E'];
-                const estColor = colors[index % colors.length] || '#6B7280';
+                establishments.forEach((est, index) => {
+                    // Colores por Posta (Secuencial para asegurar variedad)
+                    const colors = ['#F97316', '#22C55E', '#3B82F6', '#A855F7', '#EC4899', '#EAB308', '#14B8A6', '#F43F5E'];
+                    const estColor = colors[index % colors.length] || '#6B7280';
 
-                // Iterar Metas por Profesión
-                Object.entries(est.targets || {}).forEach(([prof, target]) => {
-                    let roundsNeeded = parseInt(target);
-                    if (roundsNeeded <= 0) return;
+                    // Iterar Metas por Profesión
+                    Object.entries(est.targets || {}).forEach(([prof, target]) => {
+                        let roundsNeeded = parseInt(target);
+                        if (roundsNeeded <= 0) return;
 
-                    // Candidatos: Miembros del equipo con esa profesión
-                    const candidates = (est.team || []).filter(m => m.profession === prof);
-                    if (candidates.length === 0) return; // No hay staff para cumplir la meta
+                        // Candidatos: Miembros del equipo con esa profesión
+                        const candidates = (est.team || []).filter(m => m.profession === prof);
+                        if (candidates.length === 0) return; // No hay staff para cumplir la meta
 
-                    let candidateIndex = 0;
+                        let candidateIndex = 0;
 
-                    // Intentar cumplir la meta
-                    // Estrategia: Buscar días disponibles en el mes
-                    for (let d = 1; d <= endDate.getDate(); d++) {
-                        if (roundsNeeded <= 0) break;
+                        // Intentar cumplir la meta
+                        // Estrategia: Buscar días disponibles en el mes
+                        for (let d = 1; d <= endDate.getDate(); d++) {
+                            if (roundsNeeded <= 0) break;
 
-                        const currentDayDate = new Date(year, month - 1, d);
-                        const dayOfWeek = currentDayDate.getDay(); // 0=Dom, 1=Lun
-                        if (dayOfWeek === 0 || dayOfWeek === 6) continue; // Ignorar Finde por ahora (o configurar)
+                            const currentDayDate = new Date(year, month - 1, d);
+                            const dayOfWeek = currentDayDate.getDay(); // 0=Dom, 1=Lun
+                            if (dayOfWeek === 0 || dayOfWeek === 6) continue; // Ignorar Finde por ahora (o configurar)
 
-                        // V61: Ignorar Feriados
-                        if (isHoliday(currentDayDate)) continue;
+                            // V61: Ignorar Feriados
+                            if (isHoliday(currentDayDate)) continue;
 
-                        // A. Chequear si la Posta abre este día
-                        if (!est.days.includes(dayOfWeek)) continue;
+                            // A. Chequear si la Posta abre este día
+                            if (!est.days.includes(dayOfWeek)) continue;
 
-                        // B. Chequear Capacidad de la Posta
-                        // Contar eventos ya agendados en esta posta para este día
-                        const eventsOnDay = events.filter(e => {
-                            const eDate = new Date(e.start);
-                            return eDate.getDate() === d &&
-                                eDate.getMonth() === (month - 1) &&
-                                eDate.getFullYear() === year &&
-                                e.extendedProps.ruralEstablishmentId === est.id;
-                        });
-                        if (eventsOnDay.length >= est.capacity) continue; // Posta llena
-
-                        // C. Buscar Candidato Disponible (Round Robin)
-                        let attempts = 0;
-                        while (attempts < candidates.length) {
-                            const candidate = candidates[candidateIndex];
-                            candidateIndex = (candidateIndex + 1) % candidates.length;
-                            attempts++;
-
-                            // Chequear si el candidato trabaja este día
-                            // candidate.days es array de int [1, 2...]
-                            // Si candidate.days no existe o está vacío, asumimos disponibilidad total o nula?
-                            // Asumimos que si está en el equipo, tiene disponibilidad, salvo que se restrinja.
-                            // Pero V30.1 introdujo checkboxes específicos.
-                            if (candidate.days && !candidate.days.includes(dayOfWeek)) continue;
-
-                            // Chequear si el candidato ya tiene evento este día (en cualquier lado)
-                            const candidateBusy = events.some(e => {
+                            // B. Chequear Capacidad de la Posta
+                            // Contar eventos ya agendados en esta posta para este día
+                            const eventsOnDay = events.filter(e => {
                                 const eDate = new Date(e.start);
                                 return eDate.getDate() === d &&
                                     eDate.getMonth() === (month - 1) &&
                                     eDate.getFullYear() === year &&
-                                    e.extendedProps.profesional === candidate.name;
+                                    e.extendedProps.ruralEstablishmentId === est.id;
                             });
-                            if (candidateBusy) continue;
+                            if (eventsOnDay.length >= est.capacity) continue; // Posta llena
 
-                            // ¡ASIGNAR!
-                            const startHour = "09:00"; // Default
-                            const endHour = "13:00"; // Default
+                            // C. Buscar Candidato Disponible (Round Robin)
+                            let attempts = 0;
+                            while (attempts < candidates.length) {
+                                const candidate = candidates[candidateIndex];
+                                candidateIndex = (candidateIndex + 1) % candidates.length;
+                                attempts++;
 
-                            const start = new Date(currentDayDate);
-                            start.setHours(9, 0);
-                            const end = new Date(currentDayDate);
-                            end.setHours(13, 0);
+                                // Chequear si el candidato trabaja este día
+                                // candidate.days es array de int [1, 2...]
+                                // Si candidate.days no existe o está vacío, asumimos disponibilidad total o nula?
+                                // Asumimos que si está en el equipo, tiene disponibilidad, salvo que se restrinja.
+                                // Pero V30.1 introdujo checkboxes específicos.
+                                if (candidate.days && !candidate.days.includes(dayOfWeek)) continue;
 
-                            events.push({
-                                id: crypto.randomUUID(),
-                                title: est.name, // Título es la Posta
-                                start: start.toISOString(),
-                                end: end.toISOString(),
-                                backgroundColor: estColor,
-                                borderColor: estColor,
-                                extendedProps: {
-                                    profesional: candidate.name,
-                                    profesion: candidate.profession,
-                                    actividad: 'Ronda Rural',
-                                    categoria: 'Clínico',
-                                    ruralEstablishmentId: est.id,
-                                    ruralAuto: true, // Flag para limpieza
-                                    sector: est.baseSector || 'Rural',
-                                    tipo: 'RURAL' // V36: Tagging Estricto
-                                }
-                            });
+                                // Chequear si el candidato ya tiene evento este día (en cualquier lado)
+                                const candidateBusy = events.some(e => {
+                                    const eDate = new Date(e.start);
+                                    return eDate.getDate() === d &&
+                                        eDate.getMonth() === (month - 1) &&
+                                        eDate.getFullYear() === year &&
+                                        e.extendedProps.profesional === candidate.name;
+                                });
+                                if (candidateBusy) continue;
 
-                            roundsNeeded--;
-                            generatedCount++;
-                            break; // Salir del while (candidato encontrado)
+                                // ¡ASIGNAR!
+                                const startHour = "09:00"; // Default
+                                const endHour = "13:00"; // Default
+
+                                const start = new Date(currentDayDate);
+                                start.setHours(9, 0);
+                                const end = new Date(currentDayDate);
+                                end.setHours(13, 0);
+
+                                events.push({
+                                    id: crypto.randomUUID(),
+                                    title: est.name, // Título es la Posta
+                                    start: start.toISOString(),
+                                    end: end.toISOString(),
+                                    backgroundColor: estColor,
+                                    borderColor: estColor,
+                                    extendedProps: {
+                                        profesional: candidate.name,
+                                        profesion: candidate.profession,
+                                        actividad: 'Ronda Rural',
+                                        categoria: 'Clínico',
+                                        ruralEstablishmentId: est.id,
+                                        ruralAuto: true, // Flag para limpieza
+                                        sector: est.baseSector || 'Rural',
+                                        tipo: 'RURAL' // V36: Tagging Estricto
+                                    }
+                                });
+
+                                roundsNeeded--;
+                                generatedCount++;
+                                break; // Salir del while (candidato encontrado)
+                            }
                         }
-                    }
-                });
-            });
-
-            // V85 FINAL FIX: Perform REAL Cloud Persistence using Batch
-            // We cannot rely on 'saveEvents' because it is empty for Cloud mode (it assumes granular updates).
-            // We must manually batch-write the new events to Firestore.
-
-            if (db && generatedCount > 0) {
-                const batchSize = 450; // Firestore limit 500
-                const newEvents = events.filter(e => e.extendedProps && e.extendedProps.ruralAuto && !e._saved); // Filter logic if mixed, but 'events' has everything.
-                // Actually 'events' contains ALL events (old + new). 
-                // We should only save the NEW ones to avoid overwriting existing unmodified docs (costly).
-                // Let's identify NEW events. In the loop above, we pushed them.
-                // Refinamos la estrategia:
-                // 1. Identificar eventos GENERADOS en esta sesión.
-
-                // MEJOR ESTRATEGIA:
-                // El array 'events' tiene TODO el calendario.
-                // Filtrar solo los de ESTE mes y que sean ruralAuto=true (que acabamos de generar/regenerar).
-                // Nota: Paso 1 borró los previos, así que todos los de este mes/ruralAuto son nuevos.
-
-                const eventsToSave = events.filter(e => {
-                    const eDate = new Date(e.start);
-                    return eDate.getFullYear() === year &&
-                        eDate.getMonth() === (month - 1) &&
-                        e.extendedProps && e.extendedProps.ruralAuto;
-                });
-
-                console.log(`☁️ Subiendo ${eventsToSave.length} eventos a la nube...`);
-
-                // Chunking
-                for (let i = 0; i < eventsToSave.length; i += batchSize) {
-                    const batch = db.batch();
-                    const chunk = eventsToSave.slice(i, i + batchSize);
-                    chunk.forEach(ev => {
-                        const ref = db.collection("events").doc(ev.id);
-                        batch.set(ev); // Set crea el documento
                     });
-                    // Async but we won't await strictly to not block UI forever, but good to know errors.
-                    batch.commit().then(() => console.log("Batch saved.")).catch(console.error);
+                });
+
+                // V85 FINAL FIX: Perform REAL Cloud Persistence using Batch
+                // We cannot rely on 'saveEvents' because it is empty for Cloud mode (it assumes granular updates).
+                // We must manually batch-write the new events to Firestore.
+
+                if (db && generatedCount > 0) {
+                    const batchSize = 450; // Firestore limit 500
+                    const newEvents = events.filter(e => e.extendedProps && e.extendedProps.ruralAuto && !e._saved); // Filter logic if mixed, but 'events' has everything.
+                    // Actually 'events' contains ALL events (old + new). 
+                    // We should only save the NEW ones to avoid overwriting existing unmodified docs (costly).
+                    // Let's identify NEW events. In the loop above, we pushed them.
+                    // Refinamos la estrategia:
+                    // 1. Identificar eventos GENERADOS en esta sesión.
+
+                    // MEJOR ESTRATEGIA:
+                    // El array 'events' tiene TODO el calendario.
+                    // Filtrar solo los de ESTE mes y que sean ruralAuto=true (que acabamos de generar/regenerar).
+                    // Nota: Paso 1 borró los previos, así que todos los de este mes/ruralAuto son nuevos.
+
+                    const eventsToSave = events.filter(e => {
+                        const eDate = new Date(e.start);
+                        return eDate.getFullYear() === year &&
+                            eDate.getMonth() === (month - 1) &&
+                            e.extendedProps && e.extendedProps.ruralAuto;
+                    });
+
+                    console.log(`☁️ Subiendo ${eventsToSave.length} eventos a la nube...`);
+
+                    // Chunking
+                    for (let i = 0; i < eventsToSave.length; i += batchSize) {
+                        const batch = db.batch();
+                        const chunk = eventsToSave.slice(i, i + batchSize);
+                        chunk.forEach(ev => {
+                            const ref = db.collection("events").doc(ev.id);
+                            batch.set(ev); // Set crea el documento
+                        });
+                        await batch.commit();
+                        console.log(`Batch saved.`);
+                    }
                 }
+
+                // También actualizamos LocalStorage para feedback inmediato (Optimistic UI)
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+
+                // Refetch
+                if (calendar) calendar.refetchEvents();
+                if (calendarRural) {
+                    calendarRural.gotoDate(startDate);
+                    calendarRural.refetchEvents();
+                }
+
+                alert(`Distribución Generada: ${generatedCount} rondas asignadas y guardadas en la Nube.`);
+                try { switchTab('distribucion'); } catch (e) { }
+            } catch (err) {
+                console.error("Error generating distribution:", err);
+                alert("Error técnico al generar: " + err.message);
             }
-
-            // También actualizamos LocalStorage para feedback inmediato (Optimistic UI)
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
-
-            // Refetch
-            if (calendar) calendar.refetchEvents();
-            if (calendarRural) {
-                calendarRural.gotoDate(startDate);
-                calendarRural.refetchEvents();
-            }
-
-            alert(`Distribución Generada: ${generatedCount} rondas asignadas y guardadas en la Nube.`);
-            switchTab('distribucion');
-            switchTab('distribucion');
         }
 
         function clearRuralMonth() {
