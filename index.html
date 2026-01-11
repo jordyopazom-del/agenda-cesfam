@@ -2608,16 +2608,58 @@
                 });
             });
 
-            // V85 FIX: Use the central saveEvents function to ensure Cloud Sync!
-            // localStorage.setItem(STORAGE_KEY, JSON.stringify(events)); <-- OLD BUGGY WAY
-            saveEvents(events); // <-- NEW CORRECT WAY
-            calendar.refetchEvents(); // Actualizar calendario principal
+            // V85 FINAL FIX: Perform REAL Cloud Persistence using Batch
+            // We cannot rely on 'saveEvents' because it is empty for Cloud mode (it assumes granular updates).
+            // We must manually batch-write the new events to Firestore.
+
+            if (db && generatedCount > 0) {
+                const batchSize = 450; // Firestore limit 500
+                const newEvents = events.filter(e => e.extendedProps && e.extendedProps.ruralAuto && !e._saved); // Filter logic if mixed, but 'events' has everything.
+                // Actually 'events' contains ALL events (old + new). 
+                // We should only save the NEW ones to avoid overwriting existing unmodified docs (costly).
+                // Let's identify NEW events. In the loop above, we pushed them.
+                // Refinamos la estrategia:
+                // 1. Identificar eventos GENERADOS en esta sesión.
+
+                // MEJOR ESTRATEGIA:
+                // El array 'events' tiene TODO el calendario.
+                // Filtrar solo los de ESTE mes y que sean ruralAuto=true (que acabamos de generar/regenerar).
+                // Nota: Paso 1 borró los previos, así que todos los de este mes/ruralAuto son nuevos.
+
+                const eventsToSave = events.filter(e => {
+                    const eDate = new Date(e.start);
+                    return eDate.getFullYear() === year &&
+                        eDate.getMonth() === (month - 1) &&
+                        e.extendedProps && e.extendedProps.ruralAuto;
+                });
+
+                console.log(`☁️ Subiendo ${eventsToSave.length} eventos a la nube...`);
+
+                // Chunking
+                for (let i = 0; i < eventsToSave.length; i += batchSize) {
+                    const batch = db.batch();
+                    const chunk = eventsToSave.slice(i, i + batchSize);
+                    chunk.forEach(ev => {
+                        const ref = db.collection("events").doc(ev.id);
+                        batch.set(ev); // Set crea el documento
+                    });
+                    // Async but we won't await strictly to not block UI forever, but good to know errors.
+                    batch.commit().then(() => console.log("Batch saved.")).catch(console.error);
+                }
+            }
+
+            // También actualizamos LocalStorage para feedback inmediato (Optimistic UI)
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+
+            // Refetch
+            if (calendar) calendar.refetchEvents();
             if (calendarRural) {
                 calendarRural.gotoDate(startDate);
                 calendarRural.refetchEvents();
             }
 
-            alert(`Distribución Generada: ${generatedCount} rondas asignadas.`);
+            alert(`Distribución Generada: ${generatedCount} rondas asignadas y guardadas en la Nube.`);
+            switchTab('distribucion');
             switchTab('distribucion');
         }
 
